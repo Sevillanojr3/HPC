@@ -5,86 +5,48 @@ Compilando versión secuencial...
 Compilando versión OpenMP...
 Compilando versión MPI...
 Compilando versión CUDA...
-nvcc warning : The 'compute_35', 'compute_37', 'compute_50', 'sm_35', 'sm_37' and 'sm_50' architectures are deprecated, and may be removed in a future release (Use -Wno-deprecated-gpu-targets to suppress warning).
-practica4.cu(47): error: no instance of overloaded function "atomicAdd" matches the argument list
-            argument types are: (double *, double)
-
 practica4.cu(147): error: a value of type "void *" cannot be used to initialize an entity of type "Elemento *"
 
 practica4.cu(166): error: a value of type "void *" cannot be used to initialize an entity of type "Elemento *"
 
-3 errors detected in the compilation of "practica4.cu".
-
-
-Running CUDA version...
-
-real	0m0,004s
-user	0m0,003s
-sys	0m0,005s
-(standard_in) 2: syntax error
-Running benchmark for size 5000 with 8 threads...
-Generating matrix and vector of size 5000...
-Generando matriz dispersa de 5000x5000...
-Generando vector de 5000 elementos...
+2 errors detected in the compilation of "practica4.cu".
+Compilando generador de matrices...
+Running benchmark for size 500 with 1 threads...
+Generating matrix and vector of size 500...
+Generando matriz dispersa de 500x500...
+Generando vector de 500 elementos...
 Archivos generados exitosamente:
-- matriz_5000x5000.txt
-- vector_5000.txt
+- matriz_500x500.txt
+- vector_500.txt
 Running sequential version...
 
-real	0m0,879s
-user	0m0,863s
-sys	0m0,017s
+real	0m0,023s
+user	0m0,023s
+sys	0m0,003s
 (standard_in) 2: syntax error
 Running OpenMP version...
 
-real	0m0,883s
-user	0m0,887s
-sys	0m0,016s
+real	0m0,019s
+user	0m0,020s
+sys	0m0,001s
 (standard_in) 2: syntax error
 Running MPI version...
 
-real	0m2,171s
-user	0m14,518s
-sys	0m0,398s
+real	0m0,366s
+user	0m0,067s
+sys	0m0,067s
 (standard_in) 2: syntax error
 Running CUDA version...
 
 real	0m0,004s
-user	0m0,003s
+user	0m0,002s
 sys	0m0,007s
 (standard_in) 2: syntax error
-Running benchmark for size 5000 with 16 threads...
-Generating matrix and vector of size 5000...
-Generando matriz dispersa de 5000x5000...
-Generando vector de 5000 elementos...
+Running benchmark for size 500 with 2 threads...
+Generating matrix and vector of size 500...
+Generando matriz dispersa de 500x500...
+Generando vector de 500 elementos...
 Archivos generados exitosamente:
-- matriz_5000x5000.txt
-- vector_5000.txt
+- matriz_500x500.txt
+- vector_500.txt
 Running sequential version...
-
-real	0m0,843s
-user	0m0,825s
-sys	0m0,019s
-(standard_in) 2: syntax error
-Running OpenMP version...
-
-real	0m0,873s
-user	0m0,903s
-sys	0m0,014s
-(standard_in) 2: syntax error
-Running MPI version...
-
-real	0m0,037s
-user	0m0,014s
-sys	0m0,022s
-(standard_in) 2: syntax error
-Running CUDA version...
-
-real	0m0,001s
-user	0m0,000s
-sys	0m0,002s
-(standard_in) 2: syntax error
-Running benchmark for size 50000 with 1 threads...
-Generating matrix and vector of size 50000...
-Generando matriz dispersa de 50000x50000...
-
