@@ -29,7 +29,7 @@ run_benchmark() {
     local size=$1
     local threads=$2
     
-    echo "Running benchmark for size $size with $threads threads..."
+    echo "Running benchmark for size $size with $threads threads/processes..."
     
     # Generate matrix and vector
     echo "Generating matrix and vector of size $size..."
@@ -38,20 +38,35 @@ run_benchmark() {
     matriz_file="matriz_${size}x${size}.txt"
     vector_file="vector_${size}.txt"
     
-    # Run sequential version
-    echo "Running sequential version..."
-    output_sequential=$(./practica1 "$matriz_file" "$vector_file" 2>&1)
-    time_sequential=$(echo "$output_sequential" | grep "Tiempo de ejecución:" | awk '{print $4}')
-    if [ -z "$time_sequential" ]; then
-        echo "Error: No se pudo obtener el tiempo de ejecución secuencial" >&2
-        echo "Output completo:" >&2
-        echo "$output_sequential" >&2
+    # Verificar que los archivos se generaron correctamente
+    if [ ! -f "$matriz_file" ] || [ ! -f "$vector_file" ]; then
+        echo "Error: No se pudieron generar los archivos para tamaño $size" >&2
         return 1
     fi
-    echo "Sequential time: $time_sequential" >&2
+    
+    # Run sequential version (solo una vez por tamaño)
+    if [ $threads -eq 1 ]; then
+        echo "Running sequential version (no threads)..."
+        output_sequential=$(./practica1 "$matriz_file" "$vector_file" 2>&1)
+        time_sequential=$(echo "$output_sequential" | grep "Tiempo de ejecución:" | awk '{print $4}')
+        if [ -z "$time_sequential" ]; then
+            echo "Error: No se pudo obtener el tiempo de ejecución secuencial" >&2
+            echo "Output completo:" >&2
+            echo "$output_sequential" >&2
+            return 1
+        fi
+        echo "Sequential time: $time_sequential" >&2
+    else
+        # Para otros números de hilos, usar el tiempo secuencial ya guardado
+        time_sequential=$(grep "^$size,1," results/benchmark_results.csv | cut -d',' -f3)
+        if [ -z "$time_sequential" ]; then
+            echo "Error: No se encontró el tiempo secuencial para tamaño $size" >&2
+            return 1
+        fi
+    fi
     
     # Run OpenMP version with different thread counts
-    echo "Running OpenMP version..."
+    echo "Running OpenMP version (CPU threads)..."
     export OMP_NUM_THREADS=$threads
     output_openmp=$(./practica2 "$matriz_file" "$vector_file" 2>&1)
     time_openmp=$(echo "$output_openmp" | grep "Tiempo de ejecución:" | awk '{print $4}')
@@ -64,7 +79,7 @@ run_benchmark() {
     echo "OpenMP time: $time_openmp" >&2
     
     # Run MPI version
-    echo "Running MPI version..."
+    echo "Running MPI version (processes)..."
     # Limitar el número de procesos MPI al número de hilos disponibles
     local mpi_processes=$threads
     if [ $mpi_processes -gt 8 ]; then
@@ -82,7 +97,7 @@ run_benchmark() {
     echo "MPI time: $time_mpi" >&2
     
     # Run CUDA version
-    echo "Running CUDA version..."
+    echo "Running CUDA version (GPU threads)..."
     output_cuda=$(./practica4 "$matriz_file" "$vector_file" 2>&1)
     time_cuda=$(echo "$output_cuda" | grep "Tiempo de ejecución:" | awk '{print $4}')
     if [ -z "$time_cuda" ]; then
@@ -112,28 +127,28 @@ check_command "nvcc" "CUDA Toolkit (nvcc)"
 check_command "mpicc" "MPI (openmpi-bin y libopenmpi-dev)"
 check_command "bc" "bc (bc)"
 
-# Compile all programs
+# Compile all programs with optimization flags
 echo "Compiling programs..."
 
-# Compile sequential version
+# Compile sequential version with optimization
 echo "Compilando versión secuencial..."
-gcc -o practica1 practica1.c
+gcc -O3 -o practica1 practica1.c
 
-# Compile OpenMP version
+# Compile OpenMP version with optimization
 echo "Compilando versión OpenMP..."
-gcc -fopenmp -o practica2 practica2.c
+gcc -O3 -fopenmp -o practica2 practica2.c
 
-# Compile MPI version
+# Compile MPI version with optimization
 echo "Compilando versión MPI..."
-mpicc -o practica3_mpi practica3.c
+mpicc -O3 -o practica3_mpi practica3.c
 
-# Compile CUDA version with proper flags
+# Compile CUDA version with proper flags and optimization
 echo "Compilando versión CUDA..."
-nvcc -o practica4 practica4.cu -arch=sm_60 -Wno-deprecated-gpu-targets
+nvcc -O3 -o practica4 practica4.cu -arch=sm_60 -Wno-deprecated-gpu-targets
 
-# Compile matrix generator
+# Compile matrix generator with optimization
 echo "Compilando generador de matrices..."
-gcc -o generar_matriz generar_matriz.c
+gcc -O3 -o generar_matriz generar_matriz.c
 
 # Create results directory
 mkdir -p results
@@ -142,7 +157,7 @@ mkdir -p results
 echo "Size,Threads,Sequential Time,OpenMP Time,MPI Time,CUDA Time,OpenMP Speedup,MPI Speedup,CUDA Speedup" > results/benchmark_results.csv
 
 # Run benchmarks for different sizes and thread configurations
-sizes=(500 1000 2000 5000 10000)
+sizes=(500 1000 2000 5000 10000 50000)
 threads=(1 2 4 8 16)
 
 for size in "${sizes[@]}"; do
