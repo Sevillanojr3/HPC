@@ -6,6 +6,7 @@ gcc -o practica1 practica1.c
 gcc -fopenmp -o practica2 practica2.c
 gcc -o practica3 practica3.c
 nvcc -o practica4 practica4.cu
+mpicc -o practica3_mpi practica3.c
 gcc -o generar_matriz generar_matriz.c
 
 # Create results directory
@@ -34,23 +35,28 @@ run_benchmark() {
     export OMP_NUM_THREADS=$threads
     time_openmp=$(time ./practica2 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
     
+    # Run MPI version
+    echo "Running MPI version..."
+    time_mpi=$(time mpirun -np $threads ./practica3_mpi "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
+    
     # Run CUDA version
     echo "Running CUDA version..."
     time_cuda=$(time ./practica4 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
     
     # Calculate speedup
     speedup_openmp=$(echo "scale=2; $time_sequential / $time_openmp" | bc)
+    speedup_mpi=$(echo "scale=2; $time_sequential / $time_mpi" | bc)
     speedup_cuda=$(echo "scale=2; $time_sequential / $time_cuda" | bc)
     
     # Save results
-    echo "$size,$threads,$time_sequential,$time_openmp,$time_cuda,$speedup_openmp,$speedup_cuda" >> results/benchmark_results.csv
+    echo "$size,$threads,$time_sequential,$time_openmp,$time_mpi,$time_cuda,$speedup_openmp,$speedup_mpi,$speedup_cuda" >> results/benchmark_results.csv
     
     # Clean up generated files
     rm "$matriz_file" "$vector_file"
 }
 
 # Create CSV header
-echo "Size,Threads,Sequential Time,OpenMP Time,CUDA Time,OpenMP Speedup,CUDA Speedup" > results/benchmark_results.csv
+echo "Size,Threads,Sequential Time,OpenMP Time,MPI Time,CUDA Time,OpenMP Speedup,MPI Speedup,CUDA Speedup" > results/benchmark_results.csv
 
 # Run benchmarks for different sizes and thread configurations
 sizes=(500 5000 50000 100000)
@@ -71,14 +77,14 @@ echo "" >> results/summary.txt
 for size in "${sizes[@]}"; do
     echo "Matrix Size: $size x $size" >> results/summary.txt
     echo "----------------------------------------" >> results/summary.txt
-    echo "Threads | Sequential | OpenMP | CUDA | OpenMP Speedup | CUDA Speedup" >> results/summary.txt
-    echo "--------|------------|--------|------|----------------|-------------" >> results/summary.txt
+    echo "Threads | Sequential | OpenMP | MPI | CUDA | OpenMP Speedup | MPI Speedup | CUDA Speedup" >> results/summary.txt
+    echo "--------|------------|--------|-----|------|----------------|-------------|-------------" >> results/summary.txt
     
     for thread in "${threads[@]}"; do
         line=$(grep "^$size,$thread," results/benchmark_results.csv)
-        IFS=',' read -r _ _ seq_time omp_time cuda_time omp_speedup cuda_speedup <<< "$line"
-        printf "%7d | %10.3f | %6.3f | %4.3f | %14.2f | %12.2f\n" \
-               "$thread" "$seq_time" "$omp_time" "$cuda_time" "$omp_speedup" "$cuda_speedup" >> results/summary.txt
+        IFS=',' read -r _ _ seq_time omp_time mpi_time cuda_time omp_speedup mpi_speedup cuda_speedup <<< "$line"
+        printf "%7d | %10.3f | %6.3f | %3.3f | %4.3f | %14.2f | %11.2f | %12.2f\n" \
+               "$thread" "$seq_time" "$omp_time" "$mpi_time" "$cuda_time" "$omp_speedup" "$mpi_speedup" "$cuda_speedup" >> results/summary.txt
     done
     echo "" >> results/summary.txt
 done
