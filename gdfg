@@ -5,11 +5,6 @@ Compilando versión secuencial...
 Compilando versión OpenMP...
 Compilando versión MPI...
 Compilando versión CUDA...
-practica4.cu(147): error: a value of type "void *" cannot be used to initialize an entity of type "Elemento *"
-
-practica4.cu(166): error: a value of type "void *" cannot be used to initialize an entity of type "Elemento *"
-
-2 errors detected in the compilation of "practica4.cu".
 Compilando generador de matrices...
 Running benchmark for size 500 with 1 threads...
 Generating matrix and vector of size 500...
@@ -19,29 +14,25 @@ Archivos generados exitosamente:
 - matriz_500x500.txt
 - vector_500.txt
 Running sequential version...
-
-real	0m0,023s
-user	0m0,023s
-sys	0m0,003s
-(standard_in) 2: syntax error
+Sequential time: 0.000054
 Running OpenMP version...
-
-real	0m0,019s
-user	0m0,020s
-sys	0m0,001s
-(standard_in) 2: syntax error
+OpenMP time: 0.000062
 Running MPI version...
-
-real	0m0,366s
-user	0m0,067s
-sys	0m0,067s
-(standard_in) 2: syntax error
+MPI time: 0.000071
 Running CUDA version...
-
-real	0m0,004s
-user	0m0,002s
-sys	0m0,007s
-(standard_in) 2: syntax error
+CUDA time: 0.053394
+Calculating speedup for seq_time=0.000054, par_time=0.000062
+Converted times: seq_time=0.000054, par_time=0.000062
+./benchmark.sh: línea 71: printf: .8709: número no válido
+Calculated speedup: 0,00
+Calculating speedup for seq_time=0.000054, par_time=0.000071
+Converted times: seq_time=0.000054, par_time=0.000071
+./benchmark.sh: línea 71: printf: .7605: número no válido
+Calculated speedup: 0,00
+Calculating speedup for seq_time=0.000054, par_time=0.053394
+Converted times: seq_time=0.000054, par_time=0.053394
+./benchmark.sh: línea 71: printf: .0010: número no válido
+Calculated speedup: 0,00
 Running benchmark for size 500 with 2 threads...
 Generating matrix and vector of size 500...
 Generando matriz dispersa de 500x500...
@@ -50,3 +41,89 @@ Archivos generados exitosamente:
 - matriz_500x500.txt
 - vector_500.txt
 Running sequential version...
+Sequential time: 0.000154
+Running OpenMP version...
+OpenMP time: 0.000099
+Running MPI version...
+MPI time: 0.000035
+Running CUDA version...
+CUDA time: 0.042553
+Calculating speedup for seq_time=0.000154, par_time=0.000099
+Converted times: seq_time=0.000154, par_time=0.000099
+./benchmark.sh: línea 71: printf: 1.5555: número no válido
+Calculated speedup: 1,00
+Calculating speedup for seq_time=0.000154, par_time=0.000035
+Converted times: seq_time=0.000154, par_time=0.000035
+./benchmark.sh: línea 71: printf: 4.4000: número no válido
+Calculated speedup: 4,00
+Calculating speedup for seq_time=0.000154, par_time=0.042553
+Converted times: seq_time=0.000154, par_time=0.042553
+./benchmark.sh: línea 71: printf: .0036: número no válido
+Calculated speedup: 0,00
+Running benchmark for size 500 with 4 threads...
+Generating matrix and vector of size 500...
+Generando matriz dispersa de 500x500...
+Generando vector de 500 elementos...
+Archivos generados exitosamente:
+- matriz_500x500.txt
+- vector_500.txt
+Running sequential version...
+Sequential time: 0.000067
+Running OpenMP version...
+OpenMP time: 0.000206
+Running MPI version...
+MPI time: 0.000036
+Running CUDA version...
+CUDA time: 0.037634
+Calculating speedup for seq_time=0.000067, par_time=0.000206
+Converted times: seq_time=0.000067, par_time=0.000206
+./benchmark.sh: línea 71: printf: .3252: número no válido
+Calculated speedup: 0,00
+Calculating speedup for seq_time=0.000067, par_time=0.000036
+Converted times: seq_time=0.000067, par_time=0.000036
+./benchmark.sh: línea 71: printf: 1.8611: número no válido
+Calculated speedup: 1,00
+Calculating speedup for seq_time=0.000067, par_time=0.037634
+Converted times: seq_time=0.000067, par_time=0.037634
+./benchmark.sh: línea 71: printf: .0017: número no válido
+Calculated speedup: 0,00
+Running benchmark for size 500 with 8 threads...
+Generating matrix and vector of size 500...
+Generando matriz dispersa de 500x500...
+Generando vector de 500 elementos...
+Archivos generados exitosamente:
+- matriz_500x500.txt
+- vector_500.txt
+Running sequential version...
+Sequential time: 0.000056
+Running OpenMP version...
+OpenMP time: 0.000213
+Running MPI version...
+MPI time: 0.000041
+Running CUDA version...
+CUDA time: 0.039821
+Calculating speedup for seq_time=0.000056, par_time=0.000213
+Converted times: seq_time=0.000056, par_time=0.000213
+./benchmark.sh: línea 71: printf: .2629: número no válido
+Calculated speedup: 0,00
+Calculating speedup for seq_time=0.000056, par_time=0.000041
+Converted times: seq_time=0.000056, par_time=0.000041
+./benchmark.sh: línea 71: printf: 1.3658: número no válido
+Calculated speedup: 1,00
+Calculating speedup for seq_time=0.000056, par_time=0.039821
+Converted times: seq_time=0.000056, par_time=0.039821
+./benchmark.sh: línea 71: printf: .0014: número no válido
+Calculated speedup: 0,00
+Running benchmark for size 500 with 16 threads...
+Generating matrix and vector of size 500...
+Generando matriz dispersa de 500x500...
+Generando vector de 500 elementos...
+Archivos generados exitosamente:
+- matriz_500x500.txt
+- vector_500.txt
+Running sequential version...
+Sequential time: 0.000058
+Running OpenMP version...
+OpenMP time: 0.000220
+Running MPI version...
+Error: No se pudo obtener el tiempo de ejecución MPI
