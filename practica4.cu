@@ -184,14 +184,14 @@ MatrizDispersa* leer_matriz_dispersa(FILE *archivo, int *filas, int *columnas) {
                 if (idx >= num_elementos) {
                     // Redimensionar si es necesario
                     num_elementos *= 2;
-                    Elemento* temp = realloc(matriz->elementos, num_elementos * sizeof(Elemento));
-                    if (!temp) {
+                    void* temp_ptr = realloc(matriz->elementos, num_elementos * sizeof(Elemento));
+                    if (!temp_ptr) {
                         printf("Error al redimensionar memoria\n");
                         free(matriz->elementos);
                         free(matriz);
                         return NULL;
                     }
-                    matriz->elementos = temp;
+                    matriz->elementos = (Elemento*)temp_ptr;
                 }
                 matriz->elementos[idx].fila = i;
                 matriz->elementos[idx].columna = j;
@@ -203,9 +203,9 @@ MatrizDispersa* leer_matriz_dispersa(FILE *archivo, int *filas, int *columnas) {
 
     // Ajustar al tamaño real
     if (idx < num_elementos) {
-        Elemento* temp = realloc(matriz->elementos, idx * sizeof(Elemento));
-        if (temp) {
-            matriz->elementos = temp;
+        void* temp_ptr = realloc(matriz->elementos, idx * sizeof(Elemento));
+        if (temp_ptr) {
+            matriz->elementos = (Elemento*)temp_ptr;
         }
     }
 
