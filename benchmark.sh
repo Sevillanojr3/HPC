@@ -39,21 +39,30 @@ run_benchmark() {
     echo "Running benchmark for size $size with $threads threads/processes"
     echo "====================================================="
     
-    # Create directory for generated files
+    # Create directory for generated files (if not exists)
     mkdir -p temp_files
     
-    # Generate matrix and vector
+    # Generate matrix and vector - sin pasar el directorio como parámetro
     echo "Generating matrix and vector of size $size..."
-    ./generar_matriz $size temp_files/
+    ./generar_matriz $size
     
-    matriz_file="temp_files/matriz_${size}x${size}.txt"
-    vector_file="temp_files/vector_${size}.txt"
+    # Mover archivos generados al directorio temp_files
+    matriz_file="matriz_${size}x${size}.txt"
+    vector_file="vector_${size}.txt"
     
-    # Verify files were generated correctly
+    # Verificar que los archivos se generaron correctamente
     if [ ! -f "$matriz_file" ] || [ ! -f "$vector_file" ]; then
         echo "Error: Could not generate files for size $size" >&2
         return 1
     fi
+    
+    # Mover a temp_files para mantener el directorio principal limpio
+    mv "$matriz_file" "temp_files/$matriz_file"
+    mv "$vector_file" "temp_files/$vector_file"
+    
+    # Actualizar rutas
+    matriz_file="temp_files/$matriz_file"
+    vector_file="temp_files/$vector_file"
     
     # Run sequential version (only once per size)
     if [ $threads -eq 1 ]; then
