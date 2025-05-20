@@ -1,0 +1,11 @@
+Compiling programs...
+practica3.c:4:10: fatal error: mpi.h: No existe el archivo o el directorio
+    4 | #include <mpi.h>  // Incluimos MPI en lugar de OpenMP
+      |          ^~~~~~~
+compilation terminated.
+practica4.cu(46): error: no instance of overloaded function "atomicAdd" matches the argument list
+            argument types are: (double *, double)
+
+practica4.cu(146): error: a value of type "void *" cannot be used to initialize an entity of type "Elemento *"
+
+practica4.cu(165): error: a value of type "void *" cannot be used to initialize an entity of type "Elemento *"
