@@ -14,3 +14,77 @@ practica4.cu(147): error: a value of type "void *" cannot be used to initialize 
 practica4.cu(166): error: a value of type "void *" cannot be used to initialize an entity of type "Elemento *"
 
 3 errors detected in the compilation of "practica4.cu".
+
+
+Running CUDA version...
+
+real	0m0,004s
+user	0m0,003s
+sys	0m0,005s
+(standard_in) 2: syntax error
+Running benchmark for size 5000 with 8 threads...
+Generating matrix and vector of size 5000...
+Generando matriz dispersa de 5000x5000...
+Generando vector de 5000 elementos...
+Archivos generados exitosamente:
+- matriz_5000x5000.txt
+- vector_5000.txt
+Running sequential version...
+
+real	0m0,879s
+user	0m0,863s
+sys	0m0,017s
+(standard_in) 2: syntax error
+Running OpenMP version...
+
+real	0m0,883s
+user	0m0,887s
+sys	0m0,016s
+(standard_in) 2: syntax error
+Running MPI version...
+
+real	0m2,171s
+user	0m14,518s
+sys	0m0,398s
+(standard_in) 2: syntax error
+Running CUDA version...
+
+real	0m0,004s
+user	0m0,003s
+sys	0m0,007s
+(standard_in) 2: syntax error
+Running benchmark for size 5000 with 16 threads...
+Generating matrix and vector of size 5000...
+Generando matriz dispersa de 5000x5000...
+Generando vector de 5000 elementos...
+Archivos generados exitosamente:
+- matriz_5000x5000.txt
+- vector_5000.txt
+Running sequential version...
+
+real	0m0,843s
+user	0m0,825s
+sys	0m0,019s
+(standard_in) 2: syntax error
+Running OpenMP version...
+
+real	0m0,873s
+user	0m0,903s
+sys	0m0,014s
+(standard_in) 2: syntax error
+Running MPI version...
+
+real	0m0,037s
+user	0m0,014s
+sys	0m0,022s
+(standard_in) 2: syntax error
+Running CUDA version...
+
+real	0m0,001s
+user	0m0,000s
+sys	0m0,002s
+(standard_in) 2: syntax error
+Running benchmark for size 50000 with 1 threads...
+Generating matrix and vector of size 50000...
+Generando matriz dispersa de 50000x50000...
+
