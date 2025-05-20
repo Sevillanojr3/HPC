@@ -12,6 +12,44 @@ gcc -o generar_matriz generar_matriz.c
 # Create results directory
 mkdir -p results
 
+# Function to convert time format to seconds
+convert_time_to_seconds() {
+    local time_str=$1
+    local minutes=0
+    local seconds=0
+    
+    # Check if time contains minutes
+    if [[ $time_str == *m* ]]; then
+        minutes=$(echo $time_str | cut -d'm' -f1)
+        seconds=$(echo $time_str | cut -d'm' -f2 | cut -d's' -f1)
+    else
+        seconds=$(echo $time_str | cut -d's' -f1)
+    fi
+    
+    # Convert to seconds and ensure it's a valid number
+    echo "scale=3; $minutes * 60 + $seconds" | bc
+}
+
+# Function to calculate speedup safely
+calculate_speedup() {
+    local seq_time=$1
+    local par_time=$2
+    
+    # Check if times are valid numbers
+    if [[ ! $seq_time =~ ^[0-9]+([.][0-9]+)?$ ]] || [[ ! $par_time =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+        echo "0.00"
+        return
+    fi
+    
+    # Check for division by zero
+    if (( $(echo "$par_time == 0" | bc -l) )); then
+        echo "0.00"
+        return
+    fi
+    
+    echo "scale=2; $seq_time / $par_time" | bc
+}
+
 # Function to run benchmark for a specific size
 run_benchmark() {
     local size=$1
@@ -29,24 +67,28 @@ run_benchmark() {
     # Run sequential version
     echo "Running sequential version..."
     time_sequential=$(time ./practica1 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
+    time_sequential=$(convert_time_to_seconds "$time_sequential")
     
     # Run OpenMP version with different thread counts
     echo "Running OpenMP version..."
     export OMP_NUM_THREADS=$threads
     time_openmp=$(time ./practica2 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
+    time_openmp=$(convert_time_to_seconds "$time_openmp")
     
     # Run MPI version
     echo "Running MPI version..."
     time_mpi=$(time mpirun -np $threads ./practica3_mpi "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
+    time_mpi=$(convert_time_to_seconds "$time_mpi")
     
     # Run CUDA version
     echo "Running CUDA version..."
     time_cuda=$(time ./practica4 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
+    time_cuda=$(convert_time_to_seconds "$time_cuda")
     
-    # Calculate speedup
-    speedup_openmp=$(echo "scale=2; $time_sequential / $time_openmp" | bc)
-    speedup_mpi=$(echo "scale=2; $time_sequential / $time_mpi" | bc)
-    speedup_cuda=$(echo "scale=2; $time_sequential / $time_cuda" | bc)
+    # Calculate speedups safely
+    speedup_openmp=$(calculate_speedup "$time_sequential" "$time_openmp")
+    speedup_mpi=$(calculate_speedup "$time_sequential" "$time_mpi")
+    speedup_cuda=$(calculate_speedup "$time_sequential" "$time_cuda")
     
     # Save results
     echo "$size,$threads,$time_sequential,$time_openmp,$time_mpi,$time_cuda,$speedup_openmp,$speedup_mpi,$speedup_cuda" >> results/benchmark_results.csv
