@@ -139,32 +139,48 @@ void multiplicar_matriz_dispersa_vector(const MatrizDispersa* matriz, const doub
     // Inicializar resultado con ceros
     memset(resultado, 0, matriz->filas * sizeof(double));
     
+    // Variable para seguir si hay error de memoria
+    int error_memoria = 0;
+    
     // Multiplicación paralela usando la estructura dispersa
-    #pragma omp parallel
+    #pragma omp parallel shared(error_memoria)
     {
         // Crear un array local para cada hilo
         double* resultado_local = (double*)calloc(matriz->filas, sizeof(double));
+        
+        // Verificar si se pudo asignar memoria
         if (!resultado_local) {
-            fprintf(stderr, "Error: No se pudo asignar memoria para resultado_local\n");
-            return;
-        }
-        
-        // Dividir el trabajo por elementos para mejor balanceo de carga
-        #pragma omp for schedule(dynamic, 64)
-        for (int i = 0; i < matriz->num_elementos; i++) {
-            Elemento e = matriz->elementos[i];
-            resultado_local[e.fila] += e.valor * vector[e.columna];
-        }
-        
-        // Reducir resultados locales usando una región crítica
-        #pragma omp critical
-        {
-            for (int i = 0; i < matriz->filas; i++) {
-                resultado[i] += resultado_local[i];
+            #pragma omp atomic write
+            error_memoria = 1;
+        } else {
+            // Solo continuar si no hay errores de memoria
+            #pragma omp barrier
+            
+            if (!error_memoria) {
+                // Dividir el trabajo por elementos para mejor balanceo de carga
+                #pragma omp for schedule(dynamic, 64)
+                for (int i = 0; i < matriz->num_elementos; i++) {
+                    Elemento e = matriz->elementos[i];
+                    resultado_local[e.fila] += e.valor * vector[e.columna];
+                }
+                
+                // Reducir resultados locales usando una región crítica
+                #pragma omp critical
+                {
+                    for (int i = 0; i < matriz->filas; i++) {
+                        resultado[i] += resultado_local[i];
+                    }
+                }
             }
+            
+            // Liberar memoria local
+            free(resultado_local);
         }
-        
-        free(resultado_local);
+    }
+    
+    // Manejar error de memoria fuera del bloque paralelo
+    if (error_memoria) {
+        fprintf(stderr, "Error: No se pudo asignar memoria para resultado_local\n");
     }
 }
 
