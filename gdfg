@@ -1,11 +1,16 @@
+ud@ud:~/Jesus/HPC$ ./benchmark.sh
+Verificando dependencias...
 Compiling programs...
-practica3.c:4:10: fatal error: mpi.h: No existe el archivo o el directorio
-    4 | #include <mpi.h>  // Incluimos MPI en lugar de OpenMP
-      |          ^~~~~~~
-compilation terminated.
-practica4.cu(46): error: no instance of overloaded function "atomicAdd" matches the argument list
+Compilando versión secuencial...
+Compilando versión OpenMP...
+Compilando versión MPI...
+Compilando versión CUDA...
+nvcc warning : The 'compute_35', 'compute_37', 'compute_50', 'sm_35', 'sm_37' and 'sm_50' architectures are deprecated, and may be removed in a future release (Use -Wno-deprecated-gpu-targets to suppress warning).
+practica4.cu(47): error: no instance of overloaded function "atomicAdd" matches the argument list
             argument types are: (double *, double)
 
-practica4.cu(146): error: a value of type "void *" cannot be used to initialize an entity of type "Elemento *"
+practica4.cu(147): error: a value of type "void *" cannot be used to initialize an entity of type "Elemento *"
 
-practica4.cu(165): error: a value of type "void *" cannot be used to initialize an entity of type "Elemento *"
+practica4.cu(166): error: a value of type "void *" cannot be used to initialize an entity of type "Elemento *"
+
+3 errors detected in the compilation of "practica4.cu".
