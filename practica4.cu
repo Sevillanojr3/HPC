@@ -142,8 +142,22 @@ int main(int argc, char *argv[]) {
     
     // Cargar datos
     int dim_vector;
-    MatrizDispersa* matriz = leer_matriz_dispersa(fopen(argv[1], "r"), &matriz->filas, &matriz->columnas);
-    double* vector = leer_vector(fopen(argv[2], "r"), &dim_vector);
+    int filas, columnas;
+    FILE *archivo_matriz = fopen(argv[1], "r");
+    FILE *archivo_vector = fopen(argv[2], "r");
+    
+    if (!archivo_matriz || !archivo_vector) {
+        printf("Error al abrir los archivos\n");
+        if (archivo_matriz) fclose(archivo_matriz);
+        if (archivo_vector) fclose(archivo_vector);
+        return 1;
+    }
+    
+    MatrizDispersa* matriz = leer_matriz_dispersa(archivo_matriz, &filas, &columnas);
+    double* vector = leer_vector(archivo_vector, &dim_vector);
+    
+    fclose(archivo_matriz);
+    fclose(archivo_vector);
     
     if (!matriz || !vector) {
         if (matriz) {
@@ -155,7 +169,7 @@ int main(int argc, char *argv[]) {
     }
     
     // Verificar dimensiones
-    if (matriz->columnas != dim_vector) {
+    if (columnas != dim_vector) {
         printf("Error: Las dimensiones no son compatibles\n");
         free(matriz->elementos);
         free(matriz);
