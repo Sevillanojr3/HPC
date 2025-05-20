@@ -178,18 +178,46 @@ int main(int argc, char *argv[]) {
     }
     
     // Reservar memoria en GPU
-    Elemento* d_elementos;
-    double* d_vector;
-    double* d_resultado;
+    Elemento* d_elementos = NULL;
+    double* d_vector = NULL;
+    double* d_resultado = NULL;
     
-    cudaMalloc(&d_elementos, matriz->num_elementos * sizeof(Elemento));
-    cudaMalloc(&d_vector, dim_vector * sizeof(double));
-    cudaMalloc(&d_resultado, matriz->filas * sizeof(double));
+    cudaError_t error = cudaMalloc(&d_elementos, matriz->num_elementos * sizeof(Elemento));
+    if (error != cudaSuccess) {
+        printf("Error CUDA al reservar memoria para elementos: %s\n", cudaGetErrorString(error));
+        goto cleanup;
+    }
+    
+    error = cudaMalloc(&d_vector, dim_vector * sizeof(double));
+    if (error != cudaSuccess) {
+        printf("Error CUDA al reservar memoria para vector: %s\n", cudaGetErrorString(error));
+        goto cleanup;
+    }
+    
+    error = cudaMalloc(&d_resultado, matriz->filas * sizeof(double));
+    if (error != cudaSuccess) {
+        printf("Error CUDA al reservar memoria para resultado: %s\n", cudaGetErrorString(error));
+        goto cleanup;
+    }
     
     // Copiar datos a GPU
-    cudaMemcpy(d_elementos, matriz->elementos, matriz->num_elementos * sizeof(Elemento), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_vector, vector, dim_vector * sizeof(double), cudaMemcpyHostToDevice);
-    cudaMemset(d_resultado, 0, matriz->filas * sizeof(double));
+    error = cudaMemcpy(d_elementos, matriz->elementos, matriz->num_elementos * sizeof(Elemento), cudaMemcpyHostToDevice);
+    if (error != cudaSuccess) {
+        printf("Error CUDA al copiar elementos: %s\n", cudaGetErrorString(error));
+        goto cleanup;
+    }
+    
+    error = cudaMemcpy(d_vector, vector, dim_vector * sizeof(double), cudaMemcpyHostToDevice);
+    if (error != cudaSuccess) {
+        printf("Error CUDA al copiar vector: %s\n", cudaGetErrorString(error));
+        goto cleanup;
+    }
+    
+    error = cudaMemset(d_resultado, 0, matriz->filas * sizeof(double));
+    if (error != cudaSuccess) {
+        printf("Error CUDA al inicializar resultado: %s\n", cudaGetErrorString(error));
+        goto cleanup;
+    }
     
     // Configurar grid y blocks
     int block_size = 256;
@@ -202,18 +230,18 @@ int main(int argc, char *argv[]) {
     // Ejecutar kernel
     multiplicar_matriz_vector_cuda<<<num_blocks, block_size>>>(d_elementos, matriz->num_elementos, d_vector, d_resultado, matriz->filas);
     
-    // Sincronizar y verificar errores
-    cudaDeviceSynchronize();
-    cudaError_t error = cudaGetLastError();
+    // Verificar errores del kernel
+    error = cudaGetLastError();
     if (error != cudaSuccess) {
-        printf("Error CUDA: %s\n", cudaGetErrorString(error));
-        cudaFree(d_elementos);
-        cudaFree(d_vector);
-        cudaFree(d_resultado);
-        free(matriz->elementos);
-        free(matriz);
-        free(vector);
-        return 1;
+        printf("Error CUDA en kernel: %s\n", cudaGetErrorString(error));
+        goto cleanup;
+    }
+    
+    // Sincronizar dispositivo
+    error = cudaDeviceSynchronize();
+    if (error != cudaSuccess) {
+        printf("Error CUDA al sincronizar: %s\n", cudaGetErrorString(error));
+        goto cleanup;
     }
     
     gettimeofday(&fin, NULL);
@@ -221,19 +249,31 @@ int main(int argc, char *argv[]) {
     
     // Copiar resultado de vuelta a CPU
     double* resultado = (double*)malloc(matriz->filas * sizeof(double));
-    cudaMemcpy(resultado, d_resultado, matriz->filas * sizeof(double), cudaMemcpyDeviceToHost);
+    if (!resultado) {
+        printf("Error al reservar memoria para resultado en CPU\n");
+        goto cleanup;
+    }
+    
+    error = cudaMemcpy(resultado, d_resultado, matriz->filas * sizeof(double), cudaMemcpyDeviceToHost);
+    if (error != cudaSuccess) {
+        printf("Error CUDA al copiar resultado: %s\n", cudaGetErrorString(error));
+        free(resultado);
+        goto cleanup;
+    }
     
     // Imprimir tiempo
     printf("Tiempo de ejecución CUDA: %.6f segundos\n", tiempo);
     
     // Liberar memoria
-    cudaFree(d_elementos);
-    cudaFree(d_vector);
-    cudaFree(d_resultado);
+    free(resultado);
+    
+cleanup:
+    if (d_elementos) cudaFree(d_elementos);
+    if (d_vector) cudaFree(d_vector);
+    if (d_resultado) cudaFree(d_resultado);
     free(matriz->elementos);
     free(matriz);
     free(vector);
-    free(resultado);
     
     return 0;
 }
