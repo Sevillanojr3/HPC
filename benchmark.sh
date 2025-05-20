@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Enable error reporting
+set -e
+
 # Function to check if a command exists
 check_command() {
     if ! command -v $1 &> /dev/null; then
@@ -11,10 +14,12 @@ check_command() {
 # Function to convert time format to seconds
 convert_time_to_seconds() {
     local time_str=$1
+    echo "Converting time: $time_str" >&2
+    
+    # Extract minutes and seconds
     local minutes=0
     local seconds=0
     
-    # Check if time contains minutes
     if [[ $time_str == *m* ]]; then
         minutes=$(echo $time_str | cut -d'm' -f1)
         seconds=$(echo $time_str | cut -d'm' -f2 | cut -d's' -f1)
@@ -22,13 +27,17 @@ convert_time_to_seconds() {
         seconds=$(echo $time_str | cut -d's' -f1)
     fi
     
+    echo "Minutes: $minutes, Seconds: $seconds" >&2
+    
     # Convert to seconds and ensure it's a valid number
     # Replace comma with dot for decimal point
     seconds=$(echo $seconds | tr ',' '.')
     minutes=$(echo $minutes | tr ',' '.')
     
     # Use printf for consistent decimal formatting
-    printf "%.3f\n" "$(echo "$minutes * 60 + $seconds" | bc -l)"
+    local result=$(printf "%.3f\n" "$(echo "$minutes * 60 + $seconds" | bc -l)")
+    echo "Converted to seconds: $result" >&2
+    echo "$result"
 }
 
 # Function to calculate speedup safely
@@ -36,8 +45,11 @@ calculate_speedup() {
     local seq_time=$1
     local par_time=$2
     
+    echo "Calculating speedup for seq_time=$seq_time, par_time=$par_time" >&2
+    
     # Check if times are valid numbers
     if [[ ! $seq_time =~ ^[0-9]+([.,][0-9]+)?$ ]] || [[ ! $par_time =~ ^[0-9]+([.,][0-9]+)?$ ]]; then
+        echo "Invalid time format" >&2
         echo "0.00"
         return
     fi
@@ -46,14 +58,19 @@ calculate_speedup() {
     seq_time=$(echo $seq_time | tr ',' '.')
     par_time=$(echo $par_time | tr ',' '.')
     
+    echo "Converted times: seq_time=$seq_time, par_time=$par_time" >&2
+    
     # Check for division by zero
     if (( $(echo "$par_time == 0" | bc -l) )); then
+        echo "Division by zero" >&2
         echo "0.00"
         return
     fi
     
     # Use printf for consistent decimal formatting
-    printf "%.2f\n" "$(echo "scale=4; $seq_time / $par_time" | bc -l)"
+    local result=$(printf "%.2f\n" "$(echo "scale=4; $seq_time / $par_time" | bc -l)")
+    echo "Calculated speedup: $result" >&2
+    echo "$result"
 }
 
 # Check required dependencies
@@ -106,23 +123,31 @@ run_benchmark() {
     # Run sequential version
     echo "Running sequential version..."
     time_sequential=$(time ./practica1 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
+    echo "Raw sequential time: $time_sequential" >&2
     time_sequential=$(convert_time_to_seconds "$time_sequential")
+    echo "Converted sequential time: $time_sequential" >&2
     
     # Run OpenMP version with different thread counts
     echo "Running OpenMP version..."
     export OMP_NUM_THREADS=$threads
     time_openmp=$(time ./practica2 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
+    echo "Raw OpenMP time: $time_openmp" >&2
     time_openmp=$(convert_time_to_seconds "$time_openmp")
+    echo "Converted OpenMP time: $time_openmp" >&2
     
     # Run MPI version
     echo "Running MPI version..."
     time_mpi=$(time mpirun -np $threads ./practica3_mpi "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
+    echo "Raw MPI time: $time_mpi" >&2
     time_mpi=$(convert_time_to_seconds "$time_mpi")
+    echo "Converted MPI time: $time_mpi" >&2
     
     # Run CUDA version
     echo "Running CUDA version..."
     time_cuda=$(time ./practica4 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
+    echo "Raw CUDA time: $time_cuda" >&2
     time_cuda=$(convert_time_to_seconds "$time_cuda")
+    echo "Converted CUDA time: $time_cuda" >&2
     
     # Calculate speedups safely
     speedup_openmp=$(calculate_speedup "$time_sequential" "$time_openmp")

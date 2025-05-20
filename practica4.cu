@@ -18,6 +18,17 @@ typedef struct {
     int columnas;
 } MatrizDispersa;
 
+// Función para verificar errores CUDA
+#define CUDA_CHECK(call) \
+do { \
+    cudaError_t error = call; \
+    if (error != cudaSuccess) { \
+        fprintf(stderr, "CUDA error at %s:%d: %s\n", \
+                __FILE__, __LINE__, cudaGetErrorString(error)); \
+        exit(1); \
+    } \
+} while(0)
+
 // Kernel CUDA optimizado para multiplicar matriz dispersa por vector
 __global__ void matriz_vector_kernel(Elemento* elementos, int num_elementos, 
                                    double* vector, double* resultado, int filas) {
@@ -50,78 +61,79 @@ __global__ void matriz_vector_kernel(Elemento* elementos, int num_elementos,
 
 // Función optimizada para multiplicar matriz dispersa por vector usando CUDA
 void multiplicar_matriz_vector_cuda(MatrizDispersa* matriz, double* vector, double* resultado) {
+    printf("Iniciando multiplicación CUDA...\n");
+    printf("Dimensiones: %dx%d, Elementos no nulos: %d\n", 
+           matriz->filas, matriz->columnas, matriz->num_elementos);
+    
     // Variables para dispositivo (GPU)
     Elemento* d_elementos = NULL;
     double* d_vector = NULL;
     double* d_resultado = NULL;
     
     // Reservar memoria en GPU
-    cudaError_t err;
-    err = cudaMalloc((void**)&d_elementos, matriz->num_elementos * sizeof(Elemento));
-    if (err != cudaSuccess) {
-        printf("Error al reservar memoria para elementos: %s\n", cudaGetErrorString(err));
-        return;
-    }
-    
-    err = cudaMalloc((void**)&d_vector, matriz->columnas * sizeof(double));
-    if (err != cudaSuccess) {
-        printf("Error al reservar memoria para vector: %s\n", cudaGetErrorString(err));
-        cudaFree(d_elementos);
-        return;
-    }
-    
-    err = cudaMalloc((void**)&d_resultado, matriz->filas * sizeof(double));
-    if (err != cudaSuccess) {
-        printf("Error al reservar memoria para resultado: %s\n", cudaGetErrorString(err));
-        cudaFree(d_elementos);
-        cudaFree(d_vector);
-        return;
-    }
+    printf("Reservando memoria en GPU...\n");
+    CUDA_CHECK(cudaMalloc((void**)&d_elementos, matriz->num_elementos * sizeof(Elemento)));
+    CUDA_CHECK(cudaMalloc((void**)&d_vector, matriz->columnas * sizeof(double)));
+    CUDA_CHECK(cudaMalloc((void**)&d_resultado, matriz->filas * sizeof(double)));
     
     // Inicializar el vector resultado a ceros en GPU
-    cudaMemset(d_resultado, 0, matriz->filas * sizeof(double));
+    printf("Inicializando resultado a ceros...\n");
+    CUDA_CHECK(cudaMemset(d_resultado, 0, matriz->filas * sizeof(double)));
     
     // Crear streams para transferencias asíncronas
+    printf("Creando streams CUDA...\n");
     cudaStream_t stream1, stream2;
-    cudaStreamCreate(&stream1);
-    cudaStreamCreate(&stream2);
+    CUDA_CHECK(cudaStreamCreate(&stream1));
+    CUDA_CHECK(cudaStreamCreate(&stream2));
     
     // Copiar datos de CPU a GPU de forma asíncrona
-    cudaMemcpyAsync(d_elementos, matriz->elementos, 
-                    matriz->num_elementos * sizeof(Elemento), 
-                    cudaMemcpyHostToDevice, stream1);
-    cudaMemcpyAsync(d_vector, vector, 
-                    matriz->columnas * sizeof(double), 
-                    cudaMemcpyHostToDevice, stream2);
+    printf("Copiando datos a GPU...\n");
+    CUDA_CHECK(cudaMemcpyAsync(d_elementos, matriz->elementos, 
+                              matriz->num_elementos * sizeof(Elemento), 
+                              cudaMemcpyHostToDevice, stream1));
+    CUDA_CHECK(cudaMemcpyAsync(d_vector, vector, 
+                              matriz->columnas * sizeof(double), 
+                              cudaMemcpyHostToDevice, stream2));
     
     // Esperar a que terminen las transferencias
-    cudaStreamSynchronize(stream1);
-    cudaStreamSynchronize(stream2);
+    printf("Esperando transferencias...\n");
+    CUDA_CHECK(cudaStreamSynchronize(stream1));
+    CUDA_CHECK(cudaStreamSynchronize(stream2));
     
     // Configurar la ejecución del kernel
     int blockSize = 256;
     int numBlocks = (matriz->num_elementos + blockSize - 1) / blockSize;
     int sharedMemSize = matriz->columnas * sizeof(double);
     
+    printf("Ejecutando kernel con %d bloques de %d hilos...\n", numBlocks, blockSize);
+    
     // Ejecutar el kernel
     matriz_vector_kernel<<<numBlocks, blockSize, sharedMemSize>>>
         (d_elementos, matriz->num_elementos, d_vector, d_resultado, matriz->filas);
     
+    // Verificar errores del kernel
+    CUDA_CHECK(cudaGetLastError());
+    
     // Esperar a que termine el kernel
-    cudaDeviceSynchronize();
+    printf("Esperando finalización del kernel...\n");
+    CUDA_CHECK(cudaDeviceSynchronize());
     
     // Copiar el resultado de GPU a CPU
-    cudaMemcpy(resultado, d_resultado, matriz->filas * sizeof(double), 
-               cudaMemcpyDeviceToHost);
+    printf("Copiando resultado a CPU...\n");
+    CUDA_CHECK(cudaMemcpy(resultado, d_resultado, matriz->filas * sizeof(double), 
+                         cudaMemcpyDeviceToHost));
     
     // Liberar memoria en GPU
-    cudaFree(d_elementos);
-    cudaFree(d_vector);
-    cudaFree(d_resultado);
+    printf("Liberando memoria GPU...\n");
+    CUDA_CHECK(cudaFree(d_elementos));
+    CUDA_CHECK(cudaFree(d_vector));
+    CUDA_CHECK(cudaFree(d_resultado));
     
     // Destruir streams
-    cudaStreamDestroy(stream1);
-    cudaStreamDestroy(stream2);
+    CUDA_CHECK(cudaStreamDestroy(stream1));
+    CUDA_CHECK(cudaStreamDestroy(stream2));
+    
+    printf("Multiplicación CUDA completada.\n");
 }
 
 // Función para leer la matriz dispersa
