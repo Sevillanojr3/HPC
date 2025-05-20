@@ -3,7 +3,90 @@ Checking dependencies...
 Compiling programs...
 Compiling sequential version...
 Compiling OpenMP version...
-practica2.c: In function ‘multiplicar_matriz_dispersa_vector’:
-practica2.c:149:13: error: invalid branch to/from OpenMP structured block
-  149 |             return;
-      |             ^~~~~~
+Compiling MPI version...
+Compiling CUDA version...
+practica4.cu(206): error: transfer of control bypasses initialization of:
+            variable "block_size"
+(243): here
+            variable "num_blocks"
+(244): here
+            variable "shared_mem_size"
+(255): here
+            variable "tiempo"
+(274): here
+            variable "resultado"
+(277): here
+
+practica4.cu(213): error: transfer of control bypasses initialization of:
+            variable "block_size"
+(243): here
+            variable "num_blocks"
+(244): here
+            variable "shared_mem_size"
+(255): here
+            variable "tiempo"
+(274): here
+            variable "resultado"
+(277): here
+
+practica4.cu(220): error: transfer of control bypasses initialization of:
+            variable "block_size"
+(243): here
+            variable "num_blocks"
+(244): here
+            variable "shared_mem_size"
+(255): here
+            variable "tiempo"
+(274): here
+            variable "resultado"
+(277): here
+
+practica4.cu(227): error: transfer of control bypasses initialization of:
+            variable "block_size"
+(243): here
+            variable "num_blocks"
+(244): here
+            variable "shared_mem_size"
+(255): here
+            variable "tiempo"
+(274): here
+            variable "resultado"
+(277): here
+
+practica4.cu(233): error: transfer of control bypasses initialization of:
+            variable "block_size"
+(243): here
+            variable "num_blocks"
+(244): here
+            variable "shared_mem_size"
+(255): here
+            variable "tiempo"
+(274): here
+            variable "resultado"
+(277): here
+
+practica4.cu(239): error: transfer of control bypasses initialization of:
+            variable "block_size"
+(243): here
+            variable "num_blocks"
+(244): here
+            variable "shared_mem_size"
+(255): here
+            variable "tiempo"
+(274): here
+            variable "resultado"
+(277): here
+
+practica4.cu(263): error: transfer of control bypasses initialization of:
+            variable "tiempo"
+(274): here
+            variable "resultado"
+(277): here
+
+practica4.cu(270): error: transfer of control bypasses initialization of:
+            variable "tiempo"
+(274): here
+            variable "resultado"
+(277): here
+
+8 errors detected in the compilation of "practica4.cu".
