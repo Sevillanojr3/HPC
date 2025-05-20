@@ -32,11 +32,17 @@ do { \
 
 // Kernel CUDA para multiplicar matriz dispersa por vector
 __global__ void multiplicar_matriz_vector_cuda(Elemento* elementos, int num_elementos, double* vector, double* resultado, int filas) {
+    // Índice global del hilo
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     
+    // Memoria compartida para almacenar resultados intermedios
+    extern __shared__ double temp_resultado[];
+    
+    // Cada hilo procesa un elemento no nulo
     if (idx < num_elementos) {
         Elemento e = elementos[idx];
-        atomicAdd(&resultado[e.fila], e.valor * vector[e.columna]);
+        double valor_prod = e.valor * vector[e.columna];
+        atomicAdd(&resultado[e.fila], valor_prod);
     }
 }
 
@@ -177,23 +183,37 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
+    // Verificar que hay elementos no nulos para procesar
+    if (matriz->num_elementos == 0) {
+        printf("Advertencia: La matriz está vacía (todos los elementos son cero)\n");
+        double* resultado = (double*)calloc(matriz->filas, sizeof(double));
+        if (resultado) free(resultado);
+        free(matriz->elementos);
+        free(matriz);
+        free(vector);
+        return 0;
+    }
+    
     // Reservar memoria en GPU
     Elemento* d_elementos = NULL;
     double* d_vector = NULL;
     double* d_resultado = NULL;
     
+    // Asignar memoria para elementos
     cudaError_t error = cudaMalloc(&d_elementos, matriz->num_elementos * sizeof(Elemento));
     if (error != cudaSuccess) {
         printf("Error CUDA al reservar memoria para elementos: %s\n", cudaGetErrorString(error));
         goto cleanup;
     }
     
+    // Asignar memoria para vector
     error = cudaMalloc(&d_vector, dim_vector * sizeof(double));
     if (error != cudaSuccess) {
         printf("Error CUDA al reservar memoria para vector: %s\n", cudaGetErrorString(error));
         goto cleanup;
     }
     
+    // Asignar memoria para resultado
     error = cudaMalloc(&d_resultado, matriz->filas * sizeof(double));
     if (error != cudaSuccess) {
         printf("Error CUDA al reservar memoria para resultado: %s\n", cudaGetErrorString(error));
@@ -219,16 +239,22 @@ int main(int argc, char *argv[]) {
         goto cleanup;
     }
     
-    // Configurar grid y blocks
+    // Configurar la ejecución del kernel
     int block_size = 256;
     int num_blocks = (matriz->num_elementos + block_size - 1) / block_size;
+    
+    // Mostrar información sobre la ejecución
+    printf("Ejecutando kernel CUDA con %d bloques de %d hilos cada uno\n", num_blocks, block_size);
+    printf("Elementos no nulos: %d, Matriz: %dx%d\n", matriz->num_elementos, matriz->filas, matriz->columnas);
     
     // Medir tiempo
     struct timeval inicio, fin;
     gettimeofday(&inicio, NULL);
     
     // Ejecutar kernel
-    multiplicar_matriz_vector_cuda<<<num_blocks, block_size>>>(d_elementos, matriz->num_elementos, d_vector, d_resultado, matriz->filas);
+    int shared_mem_size = 0; // No usamos memoria compartida en esta versión
+    multiplicar_matriz_vector_cuda<<<num_blocks, block_size, shared_mem_size>>>(
+        d_elementos, matriz->num_elementos, d_vector, d_resultado, matriz->filas);
     
     // Verificar errores del kernel
     error = cudaGetLastError();
@@ -248,7 +274,7 @@ int main(int argc, char *argv[]) {
     double tiempo = (fin.tv_sec - inicio.tv_sec) + (fin.tv_usec - inicio.tv_usec) / 1000000.0;
     
     // Copiar resultado de vuelta a CPU
-    double* resultado = (double*)malloc(matriz->filas * sizeof(double));
+    double* resultado = (double*)calloc(matriz->filas, sizeof(double));
     if (!resultado) {
         printf("Error al reservar memoria para resultado en CPU\n");
         goto cleanup;
@@ -264,13 +290,16 @@ int main(int argc, char *argv[]) {
     // Imprimir tiempo
     printf("Tiempo de ejecución CUDA: %.6f segundos\n", tiempo);
     
-    // Liberar memoria
+    // Liberar memoria CPU
     free(resultado);
     
 cleanup:
+    // Liberar memoria GPU
     if (d_elementos) cudaFree(d_elementos);
     if (d_vector) cudaFree(d_vector);
     if (d_resultado) cudaFree(d_resultado);
+    
+    // Liberar memoria CPU de estructuras
     free(matriz->elementos);
     free(matriz);
     free(vector);

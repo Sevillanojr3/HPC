@@ -144,15 +144,19 @@ void multiplicar_matriz_dispersa_vector(const MatrizDispersa* matriz, const doub
     {
         // Crear un array local para cada hilo
         double* resultado_local = (double*)calloc(matriz->filas, sizeof(double));
+        if (!resultado_local) {
+            fprintf(stderr, "Error: No se pudo asignar memoria para resultado_local\n");
+            return;
+        }
         
-        // Dividir el trabajo por filas para mejor localidad de cache
-        #pragma omp for schedule(guided)
+        // Dividir el trabajo por elementos para mejor balanceo de carga
+        #pragma omp for schedule(dynamic, 64)
         for (int i = 0; i < matriz->num_elementos; i++) {
             Elemento e = matriz->elementos[i];
             resultado_local[e.fila] += e.valor * vector[e.columna];
         }
         
-        // Reducir resultados locales de forma atómica
+        // Reducir resultados locales usando una región crítica
         #pragma omp critical
         {
             for (int i = 0; i < matriz->filas; i++) {
@@ -170,8 +174,16 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    // Configurar número de hilos OpenMP
-    int num_threads = omp_get_max_threads();
+    // Configurar número de hilos OpenMP desde variable de entorno
+    char* env_threads = getenv("OMP_NUM_THREADS");
+    int num_threads;
+    
+    if (env_threads) {
+        num_threads = atoi(env_threads);
+    } else {
+        num_threads = omp_get_max_threads();
+    }
+    
     omp_set_num_threads(num_threads);
     
     // Cargar datos
@@ -198,7 +210,7 @@ int main(int argc, char *argv[]) {
     }
     
     // Reservar memoria para el resultado
-    double* resultado = (double*)malloc(matriz->filas * sizeof(double));
+    double* resultado = (double*)calloc(matriz->filas, sizeof(double));
     if (!resultado) {
         printf("Error al reservar memoria para el resultado\n");
         free(matriz->elementos);

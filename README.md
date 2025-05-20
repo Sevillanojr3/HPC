@@ -1,164 +1,190 @@
-# HPC - High Performance Computing Practices
+# HPC - Prácticas de Computación de Alto Rendimiento
 
-This repository contains several practice exercises for High Performance Computing using C and CUDA.
+Este repositorio contiene implementaciones de multiplicación de matrices dispersas por vectores utilizando diferentes paradigmas de programación paralela en C y CUDA.
 
-## Prerequisites
+## Prerrequisitos
 
-### Required Dependencies
+### Dependencias Requeridas
 
-Install all required dependencies using the following commands:
+Instala todas las dependencias necesarias usando los siguientes comandos:
 
 ```bash
-# Install GCC compiler
+# Instalar compilador GCC
 sudo apt-get install gcc
 
-# Install OpenMP
+# Instalar OpenMP
 sudo apt-get install libomp-dev
 
-# Install MPI
+# Instalar MPI
 sudo apt-get install openmpi-bin libopenmpi-dev
 
-# Install CUDA Toolkit
+# Instalar CUDA Toolkit
 sudo apt-get install nvidia-cuda-toolkit
 
-# Install bc (for calculations in benchmark script)
+# Instalar bc (para cálculos en el script de benchmark)
 sudo apt-get install bc
 ```
 
-### System Requirements
+### Requisitos del Sistema
 
-- Linux operating system
-- NVIDIA GPU with CUDA support (for CUDA programs)
-- At least 4GB of RAM recommended
-- Sufficient disk space for matrix generation
+- Sistema operativo Linux
+- GPU NVIDIA con soporte CUDA (para programas CUDA)
+- Al menos 4GB de RAM recomendado
+- Espacio en disco suficiente para la generación de matrices
 
-### Verification
+### Verificación
 
-After installation, verify the tools are available:
+Después de la instalación, verifica que las herramientas estén disponibles:
 
 ```bash
-# Check GCC version
+# Comprobar versión de GCC
 gcc --version
 
-# Check OpenMP
+# Comprobar OpenMP
 gcc -fopenmp -v
 
-# Check MPI
+# Comprobar MPI
 mpicc --version
 
-# Check CUDA
+# Comprobar CUDA
 nvcc --version
 
-# Check bc
+# Comprobar bc
 bc --version
 ```
 
-## Project Structure
+## Estructura del Proyecto
 
-- `practica1.c` - First practice exercise (Sequential implementation)
-- `practica2.c` - Second practice exercise (OpenMP parallel implementation)
-- `practica3.c` - Third practice exercise (MPI implementation)
-- `practica4.cu` - Fourth practice exercise (CUDA implementation)
-- `generar_matriz.c` - Matrix generation utility
-- `benchmark.sh` - Script to measure performance and speedup
+- `practica1.c` - Implementación secuencial de multiplicación matriz-vector
+- `practica2.c` - Implementación paralela con OpenMP
+- `practica3.c` - Implementación distribuida con MPI
+- `practica4.cu` - Implementación en GPU con CUDA
+- `generar_matriz.c` - Utilidad para generar matrices y vectores
+- `benchmark.sh` - Script para medir rendimiento y aceleración
 
-## Compilation Instructions
+## Instrucciones de Compilación
 
-### C Programs
+### Programas en C
 
-To compile the C programs, use the following commands:
-
-```bash
-# Compile practica1
-gcc -o practica1 practica1.c
-
-# Compile practica2
-gcc -fopenmp -o practica2 practica2.c
-
-# Compile practica3 (MPI version)
-mpicc -o practica3_mpi practica3.c
-
-# Compile matrix generator
-gcc -o generar_matriz generar_matriz.c
-```
-
-### CUDA Program
-
-To compile the CUDA program:
+Para compilar los programas en C, utiliza los siguientes comandos:
 
 ```bash
-# Compile practica4
-nvcc -o practica4 practica4.cu
+# Compilar practica1 (versión secuencial)
+gcc -O3 -o practica1 practica1.c
+
+# Compilar practica2 (versión OpenMP)
+gcc -O3 -fopenmp -o practica2 practica2.c
+
+# Compilar practica3 (versión MPI)
+mpicc -O3 -o practica3_mpi practica3.c
+
+# Compilar generador de matrices
+gcc -O3 -o generar_matriz generar_matriz.c
 ```
 
-## Running the Programs
+### Programa CUDA
 
-1. First, generate the input matrix using the matrix generator:
+Para compilar el programa CUDA:
+
 ```bash
-./generar_matriz
+# Compilar practica4 (versión CUDA)
+nvcc -O3 -o practica4 practica4.cu -arch=sm_60 -Wno-deprecated-gpu-targets
 ```
 
-2. Then run any of the practice programs:
+## Ejecución de los Programas
+
+1. Primero, genera la matriz y el vector de entrada:
 ```bash
-# Sequential version
-./practica1
-
-# OpenMP version
-./practica2
-
-# MPI version
-mpirun -np <number_of_processes> ./practica3_mpi
-
-# CUDA version
-./practica4
+# Generar matriz y vector de tamaño 1000
+./generar_matriz 1000
 ```
 
-## Performance Benchmarking
+2. Luego ejecuta cualquiera de los programas:
+```bash
+# Versión secuencial
+./practica1 matriz_1000x1000.txt vector_1000.txt
 
-The repository includes a benchmark script (`benchmark.sh`) that measures the performance and speedup of different implementations across various matrix sizes and thread configurations.
+# Versión OpenMP (especificar número de hilos)
+export OMP_NUM_THREADS=4
+./practica2 matriz_1000x1000.txt vector_1000.txt
 
-### Running the Benchmark
+# Versión MPI (especificar número de procesos)
+mpirun -np 4 ./practica3_mpi matriz_1000x1000.txt vector_1000.txt
 
-1. Make the script executable:
+# Versión CUDA
+./practica4 matriz_1000x1000.txt vector_1000.txt
+```
+
+## Benchmarking de Rendimiento
+
+El repositorio incluye un script de benchmark (`benchmark.sh`) que mide el rendimiento y la aceleración de las diferentes implementaciones con varios tamaños de matriz y configuraciones de hilos.
+
+### Ejecución del Benchmark
+
+1. Haz el script ejecutable:
 ```bash
 chmod +x benchmark.sh
 ```
 
-2. Run the benchmark:
+2. Ejecuta el benchmark:
 ```bash
 ./benchmark.sh
 ```
 
-The script will:
-- Test matrix sizes: 500x500, 5000x5000, 50000x50000, and 100000x100000
-- Test thread configurations: 1, 2, 4, 8, and 16 threads
-- Compare sequential, OpenMP, MPI, and CUDA implementations
-- Generate speedup tables and graphs
+El script:
+- Prueba matrices de tamaño: 500x500, 1000x1000, 2000x2000, 5000x5000, 10000x10000
+- Prueba configuraciones de hilos/procesos: 1, 2, 4, 8 y 16
+- Compara implementaciones secuencial, OpenMP, MPI y CUDA
+- Genera tablas de aceleración
 
-Results will be saved in the `results/` directory:
-- `benchmark_results.csv`: Raw timing data
-- `summary.txt`: Formatted summary table with speedup calculations
+Los resultados se guardan en el directorio `results/`:
+- `benchmark_results.csv`: Datos de tiempo brutos
+- `summary.txt`: Tabla resumen formateada con cálculos de aceleración
 
-### Interpreting Results
+### Interpretación de Resultados
 
-The benchmark results show:
-- Execution time for each implementation
-- Speedup compared to sequential implementation
-- Performance scaling with different thread counts
-- Comparison between OpenMP, MPI, and CUDA implementations
+Los resultados del benchmark muestran:
+- Tiempo de ejecución para cada implementación
+- Aceleración comparada con la implementación secuencial
+- Escalado de rendimiento con diferentes cantidades de hilos
+- Comparación entre implementaciones OpenMP, MPI y CUDA
 
-## Notes
+## Optimizaciones Implementadas
 
-- Make sure you have the necessary permissions to execute the programs (`chmod +x` if needed)
-- The CUDA program requires a NVIDIA GPU and proper CUDA drivers installed
-- Some programs might require specific input parameters - check the source code for details
-- The benchmark script requires the `bc` command-line calculator to be installed
+### Versión Secuencial
+- Estructura de matriz dispersa eficiente
+- Inicialización de resultado con memset
+- Multiplicación directa de elementos no nulos
 
-## Troubleshooting
+### Versión OpenMP
+- Uso de arrays locales para cada hilo
+- Schedule dynamic para mejor balanceo de carga
+- Reducción manual para evitar false sharing
 
-If you encounter any issues:
-1. Ensure all dependencies are installed
-2. Check that you have the correct permissions
-3. Verify that your CUDA installation is working properly (for CUDA programs)
-4. Make sure you're running the programs in the correct order (matrix generation first)
-5. For benchmark issues, check that `bc` is installed and the script has execute permissions
+### Versión MPI
+- Distribución equitativa de elementos entre procesos
+- Gestión de casos con matrices vacías
+- Reducción eficiente usando MPI_Reduce
+
+### Versión CUDA
+- Paralelización a nivel de elemento no nulo
+- Uso eficiente de memoria GPU con atomicAdd
+- Manejo de errores CUDA mejorado
+
+## Notas
+
+- Asegúrate de tener los permisos necesarios para ejecutar los programas (`chmod +x` si es necesario)
+- El programa CUDA requiere una GPU NVIDIA y drivers CUDA instalados
+- Algunos programas podrían requerir parámetros de entrada específicos
+- El script de benchmark requiere que la calculadora `bc` esté instalada
+
+## Solución de Problemas
+
+Si encuentras algún problema:
+1. Asegúrate de que todas las dependencias estén instaladas
+2. Verifica que tengas los permisos correctos
+3. Comprueba que tu instalación de CUDA funcione correctamente (para programas CUDA)
+4. Asegúrate de estar ejecutando los programas en el orden correcto (primero la generación de matrices)
+5. Para problemas con el benchmark, verifica que `bc` esté instalado y que el script tenga permisos de ejecución
+6. Si hay errores de compilación en CUDA, intenta modificar la arquitectura en el comando de compilación (-arch=sm_XX)
+7. Para matrices muy grandes, asegúrate de tener suficiente memoria RAM y espacio en disco

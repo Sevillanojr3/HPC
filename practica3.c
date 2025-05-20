@@ -39,6 +39,10 @@ MatrizDispersa* leer_matriz_dispersa(FILE *archivo, int *filas, int *columnas) {
         }
     }
 
+    if (num_elementos == 0) {
+        printf("Advertencia: Matriz vacía (todos los elementos son cero)\n");
+    }
+
     // Reservamos memoria para los elementos no nulos
     MatrizDispersa* matriz = (MatrizDispersa*)malloc(sizeof(MatrizDispersa));
     if (!matriz) {
@@ -47,7 +51,7 @@ MatrizDispersa* leer_matriz_dispersa(FILE *archivo, int *filas, int *columnas) {
     }
 
     matriz->elementos = (Elemento*)malloc(num_elementos * sizeof(Elemento));
-    if (!matriz->elementos) {
+    if (!matriz->elementos && num_elementos > 0) {
         printf("Error al reservar memoria para los elementos\n");
         free(matriz);
         return NULL;
@@ -117,6 +121,11 @@ void multiplicar_matriz_vector_mpi(MatrizDispersa* matriz, double* vector, doubl
     int elementos_por_proceso = (matriz->num_elementos + size - 1) / size;
     int inicio = rank * elementos_por_proceso;
     int fin = (rank == size - 1) ? matriz->num_elementos : inicio + elementos_por_proceso;
+    
+    if (inicio >= matriz->num_elementos) {
+        inicio = matriz->num_elementos;
+        fin = matriz->num_elementos;
+    }
     
     // Inicializar resultado local
     double* resultado_local = (double*)calloc(matriz->filas, sizeof(double));
@@ -252,13 +261,17 @@ int main(int argc, char *argv[]) {
     
     // Procesos no-0 crean espacio para elementos
     if (rank != 0) {
-        matriz->elementos = (Elemento*)malloc(matriz->num_elementos * sizeof(Elemento));
-        if (!matriz->elementos) {
-            printf("Error al reservar memoria para los elementos en proceso %d\n", rank);
-            free(matriz);
-            free(vector);
-            free(resultado);
-            MPI_Abort(MPI_COMM_WORLD, 1);
+        if (matriz->num_elementos > 0) {
+            matriz->elementos = (Elemento*)malloc(matriz->num_elementos * sizeof(Elemento));
+            if (!matriz->elementos) {
+                printf("Error al reservar memoria para los elementos en proceso %d\n", rank);
+                free(matriz);
+                free(vector);
+                free(resultado);
+                MPI_Abort(MPI_COMM_WORLD, 1);
+            }
+        } else {
+            matriz->elementos = NULL;
         }
     }
     
@@ -282,14 +295,18 @@ int main(int argc, char *argv[]) {
     MPI_Type_create_struct(3, blocklengths, displacements, types, &MPI_ELEMENTO);
     MPI_Type_commit(&MPI_ELEMENTO);
     
-    // Difundir elementos
-    MPI_Bcast(matriz->elementos, matriz->num_elementos, MPI_ELEMENTO, 0, MPI_COMM_WORLD);
+    // Difundir elementos solo si hay elementos no nulos
+    if (matriz->num_elementos > 0) {
+        MPI_Bcast(matriz->elementos, matriz->num_elementos, MPI_ELEMENTO, 0, MPI_COMM_WORLD);
+    }
     
     // Sincronizar antes de medir tiempo
     MPI_Barrier(MPI_COMM_WORLD);
     
     if (rank == 0) {
-        printf("Ejecutando multiplicación matriz-vector con MPI (%d procesos)...\n", size);
+        // Limitar número de procesos a usar para mejor rendimiento 
+        int procesos_efectivos = size > 8 ? 8 : size;
+        printf("Ejecutando multiplicación matriz-vector con MPI (%d procesos)...\n", procesos_efectivos);
     }
     
     gettimeofday(&inicio, NULL);
@@ -302,7 +319,7 @@ int main(int argc, char *argv[]) {
     }
     
     // Liberar memoria
-    free(matriz->elementos);
+    if (matriz->elementos) free(matriz->elementos);
     free(matriz);
     free(vector);
     free(resultado);

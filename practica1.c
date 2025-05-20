@@ -172,7 +172,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Reservar memoria para el resultado
-    double* resultado = (double*)malloc(filas * sizeof(double));
+    double* resultado = (double*)calloc(filas, sizeof(double));
     if (!resultado) {
         printf("Error al reservar memoria para el resultado\n");
         free(matriz->elementos);
@@ -191,7 +191,7 @@ int main(int argc, char *argv[]) {
     gettimeofday(&fin, NULL);
     double tiempo = (fin.tv_sec - inicio.tv_sec) + (fin.tv_usec - inicio.tv_usec) / 1000000.0;
 
-    // Imprimir solo el tiempo de ejecución
+    // Imprimir tiempo de ejecución
     printf("Tiempo de ejecución: %.6f segundos\n", tiempo);
 
     // Liberar memoria
