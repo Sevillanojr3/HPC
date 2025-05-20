@@ -40,9 +40,12 @@ run_benchmark() {
     
     # Run sequential version
     echo "Running sequential version..."
-    time_sequential=$(./practica1 "$matriz_file" "$vector_file" 2>&1 | grep "Tiempo de ejecución:" | awk '{print $4}')
+    output_sequential=$(./practica1 "$matriz_file" "$vector_file" 2>&1)
+    time_sequential=$(echo "$output_sequential" | grep "Tiempo de ejecución:" | awk '{print $4}')
     if [ -z "$time_sequential" ]; then
         echo "Error: No se pudo obtener el tiempo de ejecución secuencial" >&2
+        echo "Output completo:" >&2
+        echo "$output_sequential" >&2
         return 1
     fi
     echo "Sequential time: $time_sequential" >&2
@@ -50,9 +53,12 @@ run_benchmark() {
     # Run OpenMP version with different thread counts
     echo "Running OpenMP version..."
     export OMP_NUM_THREADS=$threads
-    time_openmp=$(./practica2 "$matriz_file" "$vector_file" 2>&1 | grep "Tiempo de ejecución:" | awk '{print $4}')
+    output_openmp=$(./practica2 "$matriz_file" "$vector_file" 2>&1)
+    time_openmp=$(echo "$output_openmp" | grep "Tiempo de ejecución:" | awk '{print $4}')
     if [ -z "$time_openmp" ]; then
         echo "Error: No se pudo obtener el tiempo de ejecución OpenMP" >&2
+        echo "Output completo:" >&2
+        echo "$output_openmp" >&2
         return 1
     fi
     echo "OpenMP time: $time_openmp" >&2
@@ -65,18 +71,24 @@ run_benchmark() {
         mpi_processes=8
         echo "Warning: Limiting MPI processes to 8 (requested: $threads)" >&2
     fi
-    time_mpi=$(mpirun -np $mpi_processes ./practica3_mpi "$matriz_file" "$vector_file" 2>&1 | grep "Tiempo de ejecución MPI:" | awk '{print $5}')
+    output_mpi=$(mpirun -np $mpi_processes ./practica3_mpi "$matriz_file" "$vector_file" 2>&1)
+    time_mpi=$(echo "$output_mpi" | grep "Tiempo de ejecución MPI:" | awk '{print $5}')
     if [ -z "$time_mpi" ]; then
         echo "Error: No se pudo obtener el tiempo de ejecución MPI" >&2
+        echo "Output completo:" >&2
+        echo "$output_mpi" >&2
         return 1
     fi
     echo "MPI time: $time_mpi" >&2
     
     # Run CUDA version
     echo "Running CUDA version..."
-    time_cuda=$(./practica4 "$matriz_file" "$vector_file" 2>&1 | grep "Tiempo de ejecución:" | awk '{print $4}')
+    output_cuda=$(./practica4 "$matriz_file" "$vector_file" 2>&1)
+    time_cuda=$(echo "$output_cuda" | grep "Tiempo de ejecución:" | awk '{print $4}')
     if [ -z "$time_cuda" ]; then
         echo "Error: No se pudo obtener el tiempo de ejecución CUDA" >&2
+        echo "Output completo:" >&2
+        echo "$output_cuda" >&2
         return 1
     fi
     echo "CUDA time: $time_cuda" >&2
@@ -130,7 +142,7 @@ mkdir -p results
 echo "Size,Threads,Sequential Time,OpenMP Time,MPI Time,CUDA Time,OpenMP Speedup,MPI Speedup,CUDA Speedup" > results/benchmark_results.csv
 
 # Run benchmarks for different sizes and thread configurations
-sizes=(500 5000 50000 100000)
+sizes=(500 1000 2000 5000 10000)
 threads=(1 2 4 8 16)
 
 for size in "${sizes[@]}"; do
