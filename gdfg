@@ -5,88 +5,11 @@ Compiling sequential version...
 Compiling OpenMP version...
 Compiling MPI version...
 Compiling CUDA version...
-practica4.cu(206): error: transfer of control bypasses initialization of:
-            variable "block_size"
-(243): here
-            variable "num_blocks"
-(244): here
-            variable "shared_mem_size"
-(255): here
-            variable "tiempo"
-(274): here
-            variable "resultado"
-(277): here
-
-practica4.cu(213): error: transfer of control bypasses initialization of:
-            variable "block_size"
-(243): here
-            variable "num_blocks"
-(244): here
-            variable "shared_mem_size"
-(255): here
-            variable "tiempo"
-(274): here
-            variable "resultado"
-(277): here
-
-practica4.cu(220): error: transfer of control bypasses initialization of:
-            variable "block_size"
-(243): here
-            variable "num_blocks"
-(244): here
-            variable "shared_mem_size"
-(255): here
-            variable "tiempo"
-(274): here
-            variable "resultado"
-(277): here
-
-practica4.cu(227): error: transfer of control bypasses initialization of:
-            variable "block_size"
-(243): here
-            variable "num_blocks"
-(244): here
-            variable "shared_mem_size"
-(255): here
-            variable "tiempo"
-(274): here
-            variable "resultado"
-(277): here
-
-practica4.cu(233): error: transfer of control bypasses initialization of:
-            variable "block_size"
-(243): here
-            variable "num_blocks"
-(244): here
-            variable "shared_mem_size"
-(255): here
-            variable "tiempo"
-(274): here
-            variable "resultado"
-(277): here
-
-practica4.cu(239): error: transfer of control bypasses initialization of:
-            variable "block_size"
-(243): here
-            variable "num_blocks"
-(244): here
-            variable "shared_mem_size"
-(255): here
-            variable "tiempo"
-(274): here
-            variable "resultado"
-(277): here
-
-practica4.cu(263): error: transfer of control bypasses initialization of:
-            variable "tiempo"
-(274): here
-            variable "resultado"
-(277): here
-
-practica4.cu(270): error: transfer of control bypasses initialization of:
-            variable "tiempo"
-(274): here
-            variable "resultado"
-(277): here
-
-8 errors detected in the compilation of "practica4.cu".
+Compiling matrix generator...
+Starting benchmarks...
+=====================================================
+Running benchmark for size 500 with 1 threads/processes
+=====================================================
+Generating matrix and vector of size 500...
+Uso: ./generar_matriz <tamaño>
+Ejemplo: ./generar_matriz 5000
