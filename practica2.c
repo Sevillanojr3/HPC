@@ -136,21 +136,31 @@ MatrizDispersa* cargar_matriz_dispersa(const char* nombre_archivo) {
 
 // Multiplicación optimizada de matriz dispersa por vector usando OpenMP
 void multiplicar_matriz_dispersa_vector(const MatrizDispersa* matriz, const double* vector, double* resultado) {
-    // Inicializar resultado con ceros en paralelo
-    #pragma omp parallel for
-    for (int i = 0; i < matriz->filas; i++) {
-        resultado[i] = 0.0;
-    }
+    // Inicializar resultado con ceros
+    memset(resultado, 0, matriz->filas * sizeof(double));
     
     // Multiplicación paralela usando la estructura dispersa
     #pragma omp parallel
     {
-        // Usar reduction para mejor rendimiento
-        #pragma omp for schedule(dynamic, 64) reduction(+:resultado[:matriz->filas])
+        // Crear un array local para cada hilo
+        double* resultado_local = (double*)calloc(matriz->filas, sizeof(double));
+        
+        // Dividir el trabajo por filas para mejor localidad de cache
+        #pragma omp for schedule(guided)
         for (int i = 0; i < matriz->num_elementos; i++) {
             Elemento e = matriz->elementos[i];
-            resultado[e.fila] += e.valor * vector[e.columna];
+            resultado_local[e.fila] += e.valor * vector[e.columna];
         }
+        
+        // Reducir resultados locales de forma atómica
+        #pragma omp critical
+        {
+            for (int i = 0; i < matriz->filas; i++) {
+                resultado[i] += resultado_local[i];
+            }
+        }
+        
+        free(resultado_local);
     }
 }
 
@@ -159,6 +169,10 @@ int main(int argc, char *argv[]) {
         printf("Uso: %s <archivo_matriz> <archivo_vector>\n", argv[0]);
         return 1;
     }
+    
+    // Configurar número de hilos OpenMP
+    int num_threads = omp_get_max_threads();
+    omp_set_num_threads(num_threads);
     
     // Cargar datos
     int dim_vector;
@@ -203,8 +217,8 @@ int main(int argc, char *argv[]) {
     gettimeofday(&fin, NULL);
     double tiempo = (fin.tv_sec - inicio.tv_sec) + (fin.tv_usec - inicio.tv_usec) / 1000000.0;
     
-    // Imprimir tiempo de ejecución
-    printf("Tiempo de ejecución: %.6f segundos\n", tiempo);
+    // Imprimir tiempo de ejecución y número de hilos
+    printf("Tiempo de ejecución: %.6f segundos (OpenMP con %d hilos)\n", tiempo, num_threads);
     
     // Liberar memoria
     free(matriz->elementos);

@@ -113,26 +113,19 @@ double* leer_vector(FILE *archivo, int *dimension) {
 
 // Función para multiplicar matriz dispersa por vector (versión paralela con MPI)
 void multiplicar_matriz_vector_mpi(MatrizDispersa* matriz, double* vector, double* resultado, int rank, int size) {
-    int elementos_por_proceso, inicio, fin;
+    // Calcular elementos por proceso de forma más equilibrada
+    int elementos_por_proceso = (matriz->num_elementos + size - 1) / size;
+    int inicio = rank * elementos_por_proceso;
+    int fin = (rank == size - 1) ? matriz->num_elementos : inicio + elementos_por_proceso;
     
-    // Calcular cuántos elementos procesa cada proceso
-    elementos_por_proceso = matriz->num_elementos / size;
-    inicio = rank * elementos_por_proceso;
-    if (rank == size - 1) {
-        // El último proceso toma los elementos restantes
-        fin = matriz->num_elementos;
-    } else {
-        fin = inicio + elementos_por_proceso;
-    }
-    
-    // Cada proceso inicializa su resultado local
+    // Inicializar resultado local
     double* resultado_local = (double*)calloc(matriz->filas, sizeof(double));
     if (!resultado_local) {
         printf("Error: No se pudo asignar memoria para resultado_local en proceso %d\n", rank);
         MPI_Abort(MPI_COMM_WORLD, 1);
     }
     
-    // Cada proceso calcula su parte de la multiplicación
+    // Cada proceso calcula su parte
     for (int i = inicio; i < fin; i++) {
         int fila = matriz->elementos[i].fila;
         int columna = matriz->elementos[i].columna;
@@ -140,7 +133,7 @@ void multiplicar_matriz_vector_mpi(MatrizDispersa* matriz, double* vector, doubl
         resultado_local[fila] += valor * vector[columna];
     }
     
-    // Sumamos todos los resultados locales en el proceso 0
+    // Reducir resultados usando MPI_Reduce
     MPI_Reduce(resultado_local, resultado, matriz->filas, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     
     free(resultado_local);
@@ -169,9 +162,8 @@ int main(int argc, char *argv[]) {
     double* resultado = NULL;
     int filas = 0, columnas = 0, dim_vector = 0;
     
-    // Solo el proceso 0 lee los archivos y distribuye los datos
+    // Solo el proceso 0 lee los archivos
     if (rank == 0) {
-        // Abrir archivos
         FILE *archivo_matriz = fopen(argv[1], "r");
         FILE *archivo_vector = fopen(argv[2], "r");
         
@@ -183,7 +175,6 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         
-        // Leer matriz dispersa y vector
         matriz = leer_matriz_dispersa(archivo_matriz, &filas, &columnas);
         vector = leer_vector(archivo_vector, &dim_vector);
         
@@ -200,10 +191,8 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         
-        // Verificar dimensiones
         if (columnas != dim_vector) {
-            printf("Error: Las dimensiones no son compatibles para la multiplicación\n");
-            printf("Matriz: %dx%d, Vector: %d\n", filas, columnas, dim_vector);
+            printf("Error: Las dimensiones no son compatibles\n");
             free(matriz->elementos);
             free(matriz);
             free(vector);
@@ -211,7 +200,6 @@ int main(int argc, char *argv[]) {
             return 1;
         }
         
-        // Reservar memoria para el resultado
         resultado = (double*)calloc(filas, sizeof(double));
         if (!resultado) {
             printf("Error al reservar memoria para el resultado\n");
@@ -223,20 +211,18 @@ int main(int argc, char *argv[]) {
         }
     }
     
-    // Difundir las dimensiones a todos los procesos
+    // Difundir dimensiones
     MPI_Bcast(&filas, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&columnas, 1, MPI_INT, 0, MPI_COMM_WORLD);
     MPI_Bcast(&dim_vector, 1, MPI_INT, 0, MPI_COMM_WORLD);
     
-    // Todos los procesos excepto el 0 crean espacio para el vector
+    // Procesos no-0 crean espacio para vector
     if (rank != 0) {
         vector = (double*)malloc(dim_vector * sizeof(double));
         if (!vector) {
             printf("Error al reservar memoria para el vector en proceso %d\n", rank);
             MPI_Abort(MPI_COMM_WORLD, 1);
         }
-        
-        // También crear espacio para resultado (solo para la operación reduce)
         resultado = (double*)calloc(filas, sizeof(double));
         if (!resultado) {
             printf("Error al reservar memoria para el resultado en proceso %d\n", rank);
@@ -245,10 +231,10 @@ int main(int argc, char *argv[]) {
         }
     }
     
-    // Difundir el vector a todos los procesos
+    // Difundir vector
     MPI_Bcast(vector, dim_vector, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     
-    // Crear la estructura de matriz en cada proceso si no es el proceso 0
+    // Crear estructura de matriz en procesos no-0
     if (rank != 0) {
         matriz = (MatrizDispersa*)malloc(sizeof(MatrizDispersa));
         if (!matriz) {
@@ -261,10 +247,10 @@ int main(int argc, char *argv[]) {
         matriz->columnas = columnas;
     }
     
-    // Difundir el número de elementos no nulos
+    // Difundir número de elementos
     MPI_Bcast(&(matriz->num_elementos), 1, MPI_INT, 0, MPI_COMM_WORLD);
     
-    // Cada proceso que no es el 0 crea espacio para los elementos
+    // Procesos no-0 crean espacio para elementos
     if (rank != 0) {
         matriz->elementos = (Elemento*)malloc(matriz->num_elementos * sizeof(Elemento));
         if (!matriz->elementos) {
@@ -276,13 +262,12 @@ int main(int argc, char *argv[]) {
         }
     }
     
-    // Crear un tipo MPI para Elemento
+    // Crear tipo MPI para Elemento
     MPI_Datatype MPI_ELEMENTO;
     int blocklengths[3] = {1, 1, 1};
     MPI_Aint displacements[3];
     MPI_Datatype types[3] = {MPI_INT, MPI_INT, MPI_DOUBLE};
     
-    // Calcular los desplazamientos en bytes
     Elemento dummy;
     MPI_Aint base_address;
     MPI_Get_address(&dummy, &base_address);
@@ -290,25 +275,21 @@ int main(int argc, char *argv[]) {
     MPI_Get_address(&dummy.columna, &displacements[1]);
     MPI_Get_address(&dummy.valor, &displacements[2]);
     
-    // Hacer desplazamientos relativos
     displacements[0] = MPI_Aint_diff(displacements[0], base_address);
     displacements[1] = MPI_Aint_diff(displacements[1], base_address);
     displacements[2] = MPI_Aint_diff(displacements[2], base_address);
     
-    // Crear y comprometer el tipo
     MPI_Type_create_struct(3, blocklengths, displacements, types, &MPI_ELEMENTO);
     MPI_Type_commit(&MPI_ELEMENTO);
     
-    // Difundir los elementos a todos los procesos
+    // Difundir elementos
     MPI_Bcast(matriz->elementos, matriz->num_elementos, MPI_ELEMENTO, 0, MPI_COMM_WORLD);
     
-    // Barrera de sincronización antes de empezar a medir tiempo
+    // Sincronizar antes de medir tiempo
     MPI_Barrier(MPI_COMM_WORLD);
     
-    // Realizar multiplicación en paralelo y medir tiempo
     if (rank == 0) {
-        printf("Ejecutando multiplicación matriz-vector con MPI...\n");
-        printf("Número de procesos: %d\n", size);
+        printf("Ejecutando multiplicación matriz-vector con MPI (%d procesos)...\n", size);
     }
     
     gettimeofday(&inicio, NULL);
@@ -316,26 +297,17 @@ int main(int argc, char *argv[]) {
     gettimeofday(&fin, NULL);
     double tiempo = (fin.tv_sec - inicio.tv_sec) + (fin.tv_usec - inicio.tv_usec) / 1000000.0;
     
-    // Imprimir resultado y tiempo en el proceso 0
     if (rank == 0) {
-        printf("Resultado de la multiplicación matriz dispersa por vector (MPI):\n");
-        for (int i = 0; i < filas; i++) {
-            printf("%.2f\n", resultado[i]);
-        }
-        
         printf("Tiempo de ejecución MPI: %.6f segundos\n", tiempo);
     }
     
-    // Liberar memoria en cada proceso
+    // Liberar memoria
     free(matriz->elementos);
     free(matriz);
     free(vector);
     free(resultado);
     
-    // Liberar el tipo MPI
     MPI_Type_free(&MPI_ELEMENTO);
-    
-    // Finalizar MPI
     MPI_Finalize();
     
     return 0;

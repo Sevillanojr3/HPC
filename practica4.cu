@@ -30,121 +30,14 @@ do { \
     } \
 } while(0)
 
-// Kernel CUDA optimizado para multiplicar matriz dispersa por vector
-__global__ void matriz_vector_kernel(Elemento* elementos, int num_elementos, 
-                                   double* vector, double* resultado, int filas) {
-    // Calcular índice global del hilo
+// Kernel CUDA para multiplicar matriz dispersa por vector
+__global__ void multiplicar_matriz_vector_cuda(Elemento* elementos, int num_elementos, double* vector, double* resultado, int filas) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     
-    // Memoria compartida para el vector
-    extern __shared__ double s_vector[];
-    
-    // Cargar parte del vector en memoria compartida
-    int tid = threadIdx.x;
-    int stride = blockDim.x;
-    for (int i = tid; i < filas; i += stride) {
-        s_vector[i] = vector[i];
-    }
-    __syncthreads();
-    
-    // Cada hilo procesa un elemento no nulo de la matriz
     if (idx < num_elementos) {
-        int fila = elementos[idx].fila;
-        int columna = elementos[idx].columna;
-        double valor = elementos[idx].valor;
-        
-        // Multiplicar el elemento por el correspondiente del vector
-        // y usamos atomicAdd para evitar condiciones de carrera
-        double temp = valor * s_vector[columna];
-        atomicAdd((double*)&resultado[fila], temp);
+        Elemento e = elementos[idx];
+        atomicAdd(&resultado[e.fila], e.valor * vector[e.columna]);
     }
-}
-
-// Función optimizada para multiplicar matriz dispersa por vector usando CUDA
-void multiplicar_matriz_vector_cuda(MatrizDispersa* matriz, double* vector, double* resultado) {
-    printf("Iniciando multiplicación CUDA...\n");
-    printf("Dimensiones: %dx%d, Elementos no nulos: %d\n", 
-           matriz->filas, matriz->columnas, matriz->num_elementos);
-    
-    // Variables para dispositivo (GPU)
-    Elemento* d_elementos = NULL;
-    double* d_vector = NULL;
-    double* d_resultado = NULL;
-    
-    // Reservar memoria en GPU
-    printf("Reservando memoria en GPU...\n");
-    void* temp_ptr = NULL;
-    
-    // Reservar memoria para elementos
-    CUDA_CHECK(cudaMalloc(&temp_ptr, matriz->num_elementos * sizeof(Elemento)));
-    d_elementos = (Elemento*)temp_ptr;
-    
-    // Reservar memoria para vector
-    CUDA_CHECK(cudaMalloc(&temp_ptr, matriz->columnas * sizeof(double)));
-    d_vector = (double*)temp_ptr;
-    
-    // Reservar memoria para resultado
-    CUDA_CHECK(cudaMalloc(&temp_ptr, matriz->filas * sizeof(double)));
-    d_resultado = (double*)temp_ptr;
-    
-    // Inicializar el vector resultado a ceros en GPU
-    printf("Inicializando resultado a ceros...\n");
-    CUDA_CHECK(cudaMemset(d_resultado, 0, matriz->filas * sizeof(double)));
-    
-    // Crear streams para transferencias asíncronas
-    printf("Creando streams CUDA...\n");
-    cudaStream_t stream1, stream2;
-    CUDA_CHECK(cudaStreamCreate(&stream1));
-    CUDA_CHECK(cudaStreamCreate(&stream2));
-    
-    // Copiar datos de CPU a GPU de forma asíncrona
-    printf("Copiando datos a GPU...\n");
-    CUDA_CHECK(cudaMemcpyAsync(d_elementos, matriz->elementos, 
-                              matriz->num_elementos * sizeof(Elemento), 
-                              cudaMemcpyHostToDevice, stream1));
-    CUDA_CHECK(cudaMemcpyAsync(d_vector, vector, 
-                              matriz->columnas * sizeof(double), 
-                              cudaMemcpyHostToDevice, stream2));
-    
-    // Esperar a que terminen las transferencias
-    printf("Esperando transferencias...\n");
-    CUDA_CHECK(cudaStreamSynchronize(stream1));
-    CUDA_CHECK(cudaStreamSynchronize(stream2));
-    
-    // Configurar la ejecución del kernel
-    int blockSize = 256;
-    int numBlocks = (matriz->num_elementos + blockSize - 1) / blockSize;
-    int sharedMemSize = matriz->columnas * sizeof(double);
-    
-    printf("Ejecutando kernel con %d bloques de %d hilos...\n", numBlocks, blockSize);
-    
-    // Ejecutar el kernel
-    matriz_vector_kernel<<<numBlocks, blockSize, sharedMemSize>>>
-        (d_elementos, matriz->num_elementos, d_vector, d_resultado, matriz->filas);
-    
-    // Verificar errores del kernel
-    CUDA_CHECK(cudaGetLastError());
-    
-    // Esperar a que termine el kernel
-    printf("Esperando finalización del kernel...\n");
-    CUDA_CHECK(cudaDeviceSynchronize());
-    
-    // Copiar el resultado de GPU a CPU
-    printf("Copiando resultado a CPU...\n");
-    CUDA_CHECK(cudaMemcpy(resultado, d_resultado, matriz->filas * sizeof(double), 
-                         cudaMemcpyDeviceToHost));
-    
-    // Liberar memoria en GPU
-    printf("Liberando memoria GPU...\n");
-    CUDA_CHECK(cudaFree(d_elementos));
-    CUDA_CHECK(cudaFree(d_vector));
-    CUDA_CHECK(cudaFree(d_resultado));
-    
-    // Destruir streams
-    CUDA_CHECK(cudaStreamDestroy(stream1));
-    CUDA_CHECK(cudaStreamDestroy(stream2));
-    
-    printf("Multiplicación CUDA completada.\n");
 }
 
 // Función para leer la matriz dispersa
@@ -247,29 +140,10 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    // Declarar variables
-    MatrizDispersa* matriz = NULL;
-    double* vector = NULL;
-    double* resultado = NULL;
-    int filas = 0, columnas = 0, dim_vector = 0;
-    
-    // Abrir archivos
-    FILE *archivo_matriz = fopen(argv[1], "r");
-    FILE *archivo_vector = fopen(argv[2], "r");
-    
-    if (!archivo_matriz || !archivo_vector) {
-        printf("Error al abrir los archivos\n");
-        if (archivo_matriz) fclose(archivo_matriz);
-        if (archivo_vector) fclose(archivo_vector);
-        return 1;
-    }
-    
-    // Leer matriz dispersa y vector
-    matriz = leer_matriz_dispersa(archivo_matriz, &filas, &columnas);
-    vector = leer_vector(archivo_vector, &dim_vector);
-    
-    fclose(archivo_matriz);
-    fclose(archivo_vector);
+    // Cargar datos
+    int dim_vector;
+    MatrizDispersa* matriz = leer_matriz_dispersa(fopen(argv[1], "r"), &matriz->filas, &matriz->columnas);
+    double* vector = leer_vector(fopen(argv[2], "r"), &dim_vector);
     
     if (!matriz || !vector) {
         if (matriz) {
@@ -281,7 +155,7 @@ int main(int argc, char *argv[]) {
     }
     
     // Verificar dimensiones
-    if (columnas != dim_vector) {
+    if (matriz->columnas != dim_vector) {
         printf("Error: Las dimensiones no son compatibles\n");
         free(matriz->elementos);
         free(matriz);
@@ -289,30 +163,59 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    // Reservar memoria para el resultado
-    resultado = (double*)malloc(filas * sizeof(double));
-    if (!resultado) {
-        printf("Error al reservar memoria para el resultado\n");
+    // Reservar memoria en GPU
+    Elemento* d_elementos;
+    double* d_vector;
+    double* d_resultado;
+    
+    cudaMalloc(&d_elementos, matriz->num_elementos * sizeof(Elemento));
+    cudaMalloc(&d_vector, dim_vector * sizeof(double));
+    cudaMalloc(&d_resultado, matriz->filas * sizeof(double));
+    
+    // Copiar datos a GPU
+    cudaMemcpy(d_elementos, matriz->elementos, matriz->num_elementos * sizeof(Elemento), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_vector, vector, dim_vector * sizeof(double), cudaMemcpyHostToDevice);
+    cudaMemset(d_resultado, 0, matriz->filas * sizeof(double));
+    
+    // Configurar grid y blocks
+    int block_size = 256;
+    int num_blocks = (matriz->num_elementos + block_size - 1) / block_size;
+    
+    // Medir tiempo
+    struct timeval inicio, fin;
+    gettimeofday(&inicio, NULL);
+    
+    // Ejecutar kernel
+    multiplicar_matriz_vector_cuda<<<num_blocks, block_size>>>(d_elementos, matriz->num_elementos, d_vector, d_resultado, matriz->filas);
+    
+    // Sincronizar y verificar errores
+    cudaDeviceSynchronize();
+    cudaError_t error = cudaGetLastError();
+    if (error != cudaSuccess) {
+        printf("Error CUDA: %s\n", cudaGetErrorString(error));
+        cudaFree(d_elementos);
+        cudaFree(d_vector);
+        cudaFree(d_resultado);
         free(matriz->elementos);
         free(matriz);
         free(vector);
         return 1;
     }
     
-    // Medir tiempo de ejecución
-    struct timeval inicio, fin;
-    gettimeofday(&inicio, NULL);
-    
-    // Realizar multiplicación
-    multiplicar_matriz_vector_cuda(matriz, vector, resultado);
-    
     gettimeofday(&fin, NULL);
     double tiempo = (fin.tv_sec - inicio.tv_sec) + (fin.tv_usec - inicio.tv_usec) / 1000000.0;
     
-    // Imprimir tiempo de ejecución
-    printf("Tiempo de ejecución: %.6f segundos\n", tiempo);
+    // Copiar resultado de vuelta a CPU
+    double* resultado = (double*)malloc(matriz->filas * sizeof(double));
+    cudaMemcpy(resultado, d_resultado, matriz->filas * sizeof(double), cudaMemcpyDeviceToHost);
+    
+    // Imprimir tiempo
+    printf("Tiempo de ejecución CUDA: %.6f segundos\n", tiempo);
     
     // Liberar memoria
+    cudaFree(d_elementos);
+    cudaFree(d_vector);
+    cudaFree(d_resultado);
     free(matriz->elementos);
     free(matriz);
     free(vector);
