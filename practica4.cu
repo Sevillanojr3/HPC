@@ -146,11 +146,33 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    // Cargar datos
+    // Declarar todas las variables al inicio
     int dim_vector;
     int filas, columnas;
-    FILE *archivo_matriz = fopen(argv[1], "r");
-    FILE *archivo_vector = fopen(argv[2], "r");
+    FILE *archivo_matriz = NULL;
+    FILE *archivo_vector = NULL;
+    MatrizDispersa* matriz = NULL;
+    double* vector = NULL;
+    double* resultado = NULL;
+    
+    // Variables para CUDA
+    Elemento* d_elementos = NULL;
+    double* d_vector = NULL;
+    double* d_resultado = NULL;
+    cudaError_t error = cudaSuccess;
+    
+    // Variables para kernel
+    int block_size = 256;
+    int num_blocks = 0;
+    int shared_mem_size = 0;
+    
+    // Variables para medir tiempo
+    struct timeval inicio, fin;
+    double tiempo = 0.0;
+    
+    // Cargar datos
+    archivo_matriz = fopen(argv[1], "r");
+    archivo_vector = fopen(argv[2], "r");
     
     if (!archivo_matriz || !archivo_vector) {
         printf("Error al abrir los archivos\n");
@@ -159,8 +181,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     
-    MatrizDispersa* matriz = leer_matriz_dispersa(archivo_matriz, &filas, &columnas);
-    double* vector = leer_vector(archivo_vector, &dim_vector);
+    matriz = leer_matriz_dispersa(archivo_matriz, &filas, &columnas);
+    vector = leer_vector(archivo_vector, &dim_vector);
     
     fclose(archivo_matriz);
     fclose(archivo_vector);
@@ -186,7 +208,7 @@ int main(int argc, char *argv[]) {
     // Verificar que hay elementos no nulos para procesar
     if (matriz->num_elementos == 0) {
         printf("Advertencia: La matriz está vacía (todos los elementos son cero)\n");
-        double* resultado = (double*)calloc(matriz->filas, sizeof(double));
+        resultado = (double*)calloc(matriz->filas, sizeof(double));
         if (resultado) free(resultado);
         free(matriz->elementos);
         free(matriz);
@@ -194,13 +216,8 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     
-    // Reservar memoria en GPU
-    Elemento* d_elementos = NULL;
-    double* d_vector = NULL;
-    double* d_resultado = NULL;
-    
     // Asignar memoria para elementos
-    cudaError_t error = cudaMalloc(&d_elementos, matriz->num_elementos * sizeof(Elemento));
+    error = cudaMalloc(&d_elementos, matriz->num_elementos * sizeof(Elemento));
     if (error != cudaSuccess) {
         printf("Error CUDA al reservar memoria para elementos: %s\n", cudaGetErrorString(error));
         goto cleanup;
@@ -240,19 +257,16 @@ int main(int argc, char *argv[]) {
     }
     
     // Configurar la ejecución del kernel
-    int block_size = 256;
-    int num_blocks = (matriz->num_elementos + block_size - 1) / block_size;
+    num_blocks = (matriz->num_elementos + block_size - 1) / block_size;
     
     // Mostrar información sobre la ejecución
     printf("Ejecutando kernel CUDA con %d bloques de %d hilos cada uno\n", num_blocks, block_size);
     printf("Elementos no nulos: %d, Matriz: %dx%d\n", matriz->num_elementos, matriz->filas, matriz->columnas);
     
     // Medir tiempo
-    struct timeval inicio, fin;
     gettimeofday(&inicio, NULL);
     
     // Ejecutar kernel
-    int shared_mem_size = 0; // No usamos memoria compartida en esta versión
     multiplicar_matriz_vector_cuda<<<num_blocks, block_size, shared_mem_size>>>(
         d_elementos, matriz->num_elementos, d_vector, d_resultado, matriz->filas);
     
@@ -271,10 +285,10 @@ int main(int argc, char *argv[]) {
     }
     
     gettimeofday(&fin, NULL);
-    double tiempo = (fin.tv_sec - inicio.tv_sec) + (fin.tv_usec - inicio.tv_usec) / 1000000.0;
+    tiempo = (fin.tv_sec - inicio.tv_sec) + (fin.tv_usec - inicio.tv_usec) / 1000000.0;
     
     // Copiar resultado de vuelta a CPU
-    double* resultado = (double*)calloc(matriz->filas, sizeof(double));
+    resultado = (double*)calloc(matriz->filas, sizeof(double));
     if (!resultado) {
         printf("Error al reservar memoria para resultado en CPU\n");
         goto cleanup;
@@ -283,7 +297,8 @@ int main(int argc, char *argv[]) {
     error = cudaMemcpy(resultado, d_resultado, matriz->filas * sizeof(double), cudaMemcpyDeviceToHost);
     if (error != cudaSuccess) {
         printf("Error CUDA al copiar resultado: %s\n", cudaGetErrorString(error));
-        free(resultado);
+        if (resultado) free(resultado);
+        resultado = NULL;
         goto cleanup;
     }
     
@@ -291,7 +306,7 @@ int main(int argc, char *argv[]) {
     printf("Tiempo de ejecución CUDA: %.6f segundos\n", tiempo);
     
     // Liberar memoria CPU
-    free(resultado);
+    if (resultado) free(resultado);
     
 cleanup:
     // Liberar memoria GPU
@@ -300,9 +315,11 @@ cleanup:
     if (d_resultado) cudaFree(d_resultado);
     
     // Liberar memoria CPU de estructuras
-    free(matriz->elementos);
-    free(matriz);
-    free(vector);
+    if (matriz) {
+        if (matriz->elementos) free(matriz->elementos);
+        free(matriz);
+    }
+    if (vector) free(vector);
     
     return 0;
 }
