@@ -55,7 +55,12 @@ MatrizDispersa* leer_matriz_dispersa(FILE *archivo, int *filas, int *columnas) {
 
     // Volvemos al inicio del archivo
     rewind(archivo);
-    fscanf(archivo, "%d %d", filas, columnas);
+    if (fscanf(archivo, "%d %d", filas, columnas) != 2) {
+        printf("Error al leer dimensiones en segunda lectura\n");
+        free(matriz->elementos);
+        free(matriz);
+        return NULL;
+    }
 
     // Leemos y guardamos solo elementos no nulos
     int idx = 0;
