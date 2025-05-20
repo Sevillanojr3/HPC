@@ -1,48 +1,41 @@
 #!/bin/bash
 
 # Function to check if a command exists
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
+check_command() {
+    if ! command -v $1 &> /dev/null; then
+        echo "Error: $1 no está instalado. Por favor, instala $2"
+        exit 1
+    fi
 }
 
-# Function to check if a header file exists
-header_exists() {
-    echo "#include <$1>" | gcc -c -x c - >/dev/null 2>&1
-}
+# Check required dependencies
+echo "Verificando dependencias..."
+check_command "gcc" "GCC (gcc)"
+check_command "nvcc" "CUDA Toolkit (nvcc)"
+check_command "mpicc" "MPI (openmpi-bin y libopenmpi-dev)"
+check_command "bc" "bc (bc)"
 
-# Check available implementations
-HAS_MPI=false
-HAS_CUDA=false
-
-# Check MPI
-if command_exists mpicc && header_exists mpi.h; then
-    HAS_MPI=true
-    echo "MPI is available"
-else
-    echo "MPI is not available - skipping MPI implementation"
-fi
-
-# Check CUDA
-if command_exists nvcc && header_exists cuda_runtime.h; then
-    HAS_CUDA=true
-    echo "CUDA is available"
-else
-    echo "CUDA is not available - skipping CUDA implementation"
-fi
-
-# Compile available programs
+# Compile all programs
 echo "Compiling programs..."
+
+# Compile sequential version
+echo "Compilando versión secuencial..."
 gcc -o practica1 practica1.c
+
+# Compile OpenMP version
+echo "Compilando versión OpenMP..."
 gcc -fopenmp -o practica2 practica2.c
 
-if [ "$HAS_MPI" = true ]; then
-    mpicc -o practica3_mpi practica3.c
-fi
+# Compile MPI version
+echo "Compilando versión MPI..."
+mpicc -o practica3_mpi practica3.c
 
-if [ "$HAS_CUDA" = true ]; then
-    nvcc -o practica4 practica4.cu
-fi
+# Compile CUDA version with proper flags
+echo "Compilando versión CUDA..."
+nvcc -o practica4 practica4.cu -arch=sm_50
 
+# Compile matrix generator
+echo "Compilando generador de matrices..."
 gcc -o generar_matriz generar_matriz.c
 
 # Create results directory
@@ -111,30 +104,20 @@ run_benchmark() {
     time_openmp=$(time ./practica2 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
     time_openmp=$(convert_time_to_seconds "$time_openmp")
     
-    # Initialize variables
-    time_mpi="0.00"
-    time_cuda="0.00"
-    speedup_mpi="0.00"
-    speedup_cuda="0.00"
+    # Run MPI version
+    echo "Running MPI version..."
+    time_mpi=$(time mpirun -np $threads ./practica3_mpi "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
+    time_mpi=$(convert_time_to_seconds "$time_mpi")
     
-    # Run MPI version if available
-    if [ "$HAS_MPI" = true ]; then
-        echo "Running MPI version..."
-        time_mpi=$(time mpirun -np $threads ./practica3_mpi "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
-        time_mpi=$(convert_time_to_seconds "$time_mpi")
-        speedup_mpi=$(calculate_speedup "$time_sequential" "$time_mpi")
-    fi
+    # Run CUDA version
+    echo "Running CUDA version..."
+    time_cuda=$(time ./practica4 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
+    time_cuda=$(convert_time_to_seconds "$time_cuda")
     
-    # Run CUDA version if available
-    if [ "$HAS_CUDA" = true ]; then
-        echo "Running CUDA version..."
-        time_cuda=$(time ./practica4 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
-        time_cuda=$(convert_time_to_seconds "$time_cuda")
-        speedup_cuda=$(calculate_speedup "$time_sequential" "$time_cuda")
-    fi
-    
-    # Calculate OpenMP speedup
+    # Calculate speedups safely
     speedup_openmp=$(calculate_speedup "$time_sequential" "$time_openmp")
+    speedup_mpi=$(calculate_speedup "$time_sequential" "$time_mpi")
+    speedup_cuda=$(calculate_speedup "$time_sequential" "$time_cuda")
     
     # Save results
     echo "$size,$threads,$time_sequential,$time_openmp,$time_mpi,$time_cuda,$speedup_openmp,$speedup_mpi,$speedup_cuda" >> results/benchmark_results.csv

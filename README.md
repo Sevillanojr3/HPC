@@ -4,17 +4,60 @@ This repository contains several practice exercises for High Performance Computi
 
 ## Prerequisites
 
-- GCC compiler
-- CUDA Toolkit (for CUDA programs)
-- Make (optional but recommended)
-- OpenMP (for parallel implementations)
-- bc (for calculations in benchmark script)
+### Required Dependencies
+
+Install all required dependencies using the following commands:
+
+```bash
+# Install GCC compiler
+sudo apt-get install gcc
+
+# Install OpenMP
+sudo apt-get install libomp-dev
+
+# Install MPI
+sudo apt-get install openmpi-bin libopenmpi-dev
+
+# Install CUDA Toolkit
+sudo apt-get install nvidia-cuda-toolkit
+
+# Install bc (for calculations in benchmark script)
+sudo apt-get install bc
+```
+
+### System Requirements
+
+- Linux operating system
+- NVIDIA GPU with CUDA support (for CUDA programs)
+- At least 4GB of RAM recommended
+- Sufficient disk space for matrix generation
+
+### Verification
+
+After installation, verify the tools are available:
+
+```bash
+# Check GCC version
+gcc --version
+
+# Check OpenMP
+gcc -fopenmp -v
+
+# Check MPI
+mpicc --version
+
+# Check CUDA
+nvcc --version
+
+# Check bc
+bc --version
+```
 
 ## Project Structure
 
 - `practica1.c` - First practice exercise (Sequential implementation)
 - `practica2.c` - Second practice exercise (OpenMP parallel implementation)
-- `practica3.c` - Third practice exercise
+- `practica3.c` - Third practice exercise (MPI implementation)
 - `practica4.cu` - Fourth practice exercise (CUDA implementation)
 - `generar_matriz.c` - Matrix generation utility
 - `benchmark.sh` - Script to measure performance and speedup
@@ -32,8 +75,8 @@ gcc -o practica1 practica1.c
 # Compile practica2
 gcc -fopenmp -o practica2 practica2.c
 
-# Compile practica3
-gcc -o practica3 practica3.c
+# Compile practica3 (MPI version)
+mpicc -o practica3_mpi practica3.c
 
 # Compile matrix generator
 gcc -o generar_matriz generar_matriz.c
@@ -57,9 +100,16 @@ nvcc -o practica4 practica4.cu
 
 2. Then run any of the practice programs:
 ```bash
+# Sequential version
 ./practica1
+
+# OpenMP version
 ./practica2
-./practica3
+
+# MPI version
+mpirun -np <number_of_processes> ./practica3_mpi
+
+# CUDA version
 ./practica4
 ```
 
@@ -82,7 +132,7 @@ chmod +x benchmark.sh
 The script will:
 - Test matrix sizes: 500x500, 5000x5000, 50000x50000, and 100000x100000
 - Test thread configurations: 1, 2, 4, 8, and 16 threads
-- Compare sequential, OpenMP, and CUDA implementations
+- Compare sequential, OpenMP, MPI, and CUDA implementations
 - Generate speedup tables and graphs
 
 Results will be saved in the `results/` directory:
@@ -95,7 +145,7 @@ The benchmark results show:
 - Execution time for each implementation
 - Speedup compared to sequential implementation
 - Performance scaling with different thread counts
-- Comparison between OpenMP and CUDA implementations
+- Comparison between OpenMP, MPI, and CUDA implementations
 
 ## Notes
 

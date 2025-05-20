@@ -43,7 +43,8 @@ __global__ void matriz_vector_kernel(Elemento* elementos, int num_elementos,
         
         // Multiplicar el elemento por el correspondiente del vector
         // y usamos atomicAdd para evitar condiciones de carrera
-        atomicAdd(&resultado[fila], valor * s_vector[columna]);
+        double temp = valor * s_vector[columna];
+        atomicAdd((double*)&resultado[fila], temp);
     }
 }
 
