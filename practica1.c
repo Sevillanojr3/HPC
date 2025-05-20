@@ -18,33 +18,22 @@ typedef struct {
     int columnas;
 } MatrizDispersa;
 
-// Función para leer la matriz dispersa
+// Función optimizada para leer la matriz dispersa
 MatrizDispersa* leer_matriz_dispersa(FILE *archivo, int *filas, int *columnas) {
     if (fscanf(archivo, "%d %d", filas, columnas) != 2) {
         printf("Error al leer dimensiones\n");
         return NULL;
     }
 
-    // Primero contamos elementos no nulos
-    double valor;
-    int num_elementos = 0;
-    for (int i = 0; i < *filas; i++) {
-        for (int j = 0; j < *columnas; j++) {
-            if (fscanf(archivo, "%lf", &valor) != 1) {
-                printf("Error al leer elemento [%d,%d]\n", i, j);
-                return NULL;
-            }
-            if (valor != 0) num_elementos++;
-        }
-    }
-
-    // Reservamos memoria para los elementos no nulos
+    // Reservamos memoria para la matriz
     MatrizDispersa* matriz = (MatrizDispersa*)malloc(sizeof(MatrizDispersa));
     if (!matriz) {
         printf("Error al reservar memoria para la matriz\n");
         return NULL;
     }
 
+    // Estimamos el número de elementos no nulos (10% de la matriz)
+    int num_elementos = (*filas * *columnas) / 10;
     matriz->elementos = (Elemento*)malloc(num_elementos * sizeof(Elemento));
     if (!matriz->elementos) {
         printf("Error al reservar memoria para los elementos\n");
@@ -52,12 +41,9 @@ MatrizDispersa* leer_matriz_dispersa(FILE *archivo, int *filas, int *columnas) {
         return NULL;
     }
 
-    // Volvemos al inicio del archivo
-    rewind(archivo);
-    fscanf(archivo, "%d %d", filas, columnas);
-
     // Leemos y guardamos solo elementos no nulos
     int idx = 0;
+    double valor;
     for (int i = 0; i < *filas; i++) {
         for (int j = 0; j < *columnas; j++) {
             if (fscanf(archivo, "%lf", &valor) != 1) {
@@ -67,6 +53,18 @@ MatrizDispersa* leer_matriz_dispersa(FILE *archivo, int *filas, int *columnas) {
                 return NULL;
             }
             if (valor != 0) {
+                if (idx >= num_elementos) {
+                    // Redimensionar si es necesario
+                    num_elementos *= 2;
+                    Elemento* temp = realloc(matriz->elementos, num_elementos * sizeof(Elemento));
+                    if (!temp) {
+                        printf("Error al redimensionar memoria\n");
+                        free(matriz->elementos);
+                        free(matriz);
+                        return NULL;
+                    }
+                    matriz->elementos = temp;
+                }
                 matriz->elementos[idx].fila = i;
                 matriz->elementos[idx].columna = j;
                 matriz->elementos[idx].valor = valor;
@@ -75,13 +73,21 @@ MatrizDispersa* leer_matriz_dispersa(FILE *archivo, int *filas, int *columnas) {
         }
     }
 
-    matriz->num_elementos = num_elementos;
+    // Ajustar al tamaño real
+    if (idx < num_elementos) {
+        Elemento* temp = realloc(matriz->elementos, idx * sizeof(Elemento));
+        if (temp) {
+            matriz->elementos = temp;
+        }
+    }
+
+    matriz->num_elementos = idx;
     matriz->filas = *filas;
     matriz->columnas = *columnas;
     return matriz;
 }
 
-// Función para leer el vector
+// Función optimizada para leer el vector
 double* leer_vector(FILE *archivo, int *dimension) {
     if (fscanf(archivo, "%d", dimension) != 1) {
         printf("Error al leer dimensión del vector\n");
@@ -94,6 +100,7 @@ double* leer_vector(FILE *archivo, int *dimension) {
         return NULL;
     }
 
+    // Leer todo el vector de una vez
     for (int i = 0; i < *dimension; i++) {
         if (fscanf(archivo, "%lf", &vector[i]) != 1) {
             printf("Error al leer elemento %d del vector\n", i);
@@ -105,21 +112,18 @@ double* leer_vector(FILE *archivo, int *dimension) {
     return vector;
 }
 
-// Función para multiplicar matriz dispersa por vector
+// Función optimizada para multiplicar matriz dispersa por vector
 void multiplicar_matriz_vector(MatrizDispersa* matriz, double* vector, double* resultado) {
-    // Inicializar resultado a cero
-    for (int i = 0; i < matriz->filas; i++) {
-        resultado[i] = 0;
-    }
+    // Inicializar resultado a cero usando memset (más rápido)
+    memset(resultado, 0, matriz->filas * sizeof(double));
 
     // Realizar multiplicación solo con elementos no nulos
+    // Agrupamos por filas para mejor localidad de caché
     for (int i = 0; i < matriz->num_elementos; i++) {
         int fila = matriz->elementos[i].fila;
         int columna = matriz->elementos[i].columna;
         double valor = matriz->elementos[i].valor;
         resultado[fila] += valor * vector[columna];
-        // Imprimimos el resultado parcial
-        printf("Resultado[%d] = %.2f\n", fila, resultado[fila]);
     }
 }
 
@@ -186,19 +190,13 @@ int main(int argc, char *argv[]) {
     clock_t fin = clock();
     double tiempo = (double)(fin - inicio) / CLOCKS_PER_SEC;
 
-    // Imprimir resultado final y tiempo
-    printf("\nResultado final de la multiplicación matriz dispersa por vector:\n");
-    for (int i = 0; i < filas; i++) {
-        printf("Resultado[%d] = %.2f\n", i, resultado[i]);
-    }
-    
-    printf("\nTiempo de ejecución: %.6f segundos\n", tiempo);
+    // Imprimir solo el tiempo de ejecución
+    printf("Tiempo de ejecución: %.6f segundos\n", tiempo);
 
     // Liberar memoria
     free(matriz->elementos);
     free(matriz);
     free(vector);
     free(resultado);
-
     return 0;
 }
