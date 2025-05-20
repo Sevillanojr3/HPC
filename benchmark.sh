@@ -23,7 +23,12 @@ convert_time_to_seconds() {
     fi
     
     # Convert to seconds and ensure it's a valid number
-    echo "scale=3; $minutes * 60 + $seconds" | bc -l
+    # Replace comma with dot for decimal point
+    seconds=$(echo $seconds | tr ',' '.')
+    minutes=$(echo $minutes | tr ',' '.')
+    
+    # Use printf for consistent decimal formatting
+    printf "%.3f\n" "$(echo "$minutes * 60 + $seconds" | bc -l)"
 }
 
 # Function to calculate speedup safely
@@ -32,10 +37,14 @@ calculate_speedup() {
     local par_time=$2
     
     # Check if times are valid numbers
-    if [[ ! $seq_time =~ ^[0-9]+([.][0-9]+)?$ ]] || [[ ! $par_time =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+    if [[ ! $seq_time =~ ^[0-9]+([.,][0-9]+)?$ ]] || [[ ! $par_time =~ ^[0-9]+([.,][0-9]+)?$ ]]; then
         echo "0.00"
         return
     fi
+    
+    # Replace comma with dot for decimal point
+    seq_time=$(echo $seq_time | tr ',' '.')
+    par_time=$(echo $par_time | tr ',' '.')
     
     # Check for division by zero
     if (( $(echo "$par_time == 0" | bc -l) )); then
@@ -43,7 +52,8 @@ calculate_speedup() {
         return
     fi
     
-    echo "scale=2; $seq_time / $par_time" | bc -l
+    # Use printf for consistent decimal formatting
+    printf "%.2f\n" "$(echo "scale=4; $seq_time / $par_time" | bc -l)"
 }
 
 # Check required dependencies

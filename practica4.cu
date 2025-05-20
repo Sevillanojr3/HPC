@@ -51,14 +51,32 @@ __global__ void matriz_vector_kernel(Elemento* elementos, int num_elementos,
 // Función optimizada para multiplicar matriz dispersa por vector usando CUDA
 void multiplicar_matriz_vector_cuda(MatrizDispersa* matriz, double* vector, double* resultado) {
     // Variables para dispositivo (GPU)
-    Elemento* d_elementos;
-    double* d_vector;
-    double* d_resultado;
+    Elemento* d_elementos = NULL;
+    double* d_vector = NULL;
+    double* d_resultado = NULL;
     
     // Reservar memoria en GPU
-    cudaMalloc((void**)&d_elementos, matriz->num_elementos * sizeof(Elemento));
-    cudaMalloc((void**)&d_vector, matriz->columnas * sizeof(double));
-    cudaMalloc((void**)&d_resultado, matriz->filas * sizeof(double));
+    cudaError_t err;
+    err = cudaMalloc((void**)&d_elementos, matriz->num_elementos * sizeof(Elemento));
+    if (err != cudaSuccess) {
+        printf("Error al reservar memoria para elementos: %s\n", cudaGetErrorString(err));
+        return;
+    }
+    
+    err = cudaMalloc((void**)&d_vector, matriz->columnas * sizeof(double));
+    if (err != cudaSuccess) {
+        printf("Error al reservar memoria para vector: %s\n", cudaGetErrorString(err));
+        cudaFree(d_elementos);
+        return;
+    }
+    
+    err = cudaMalloc((void**)&d_resultado, matriz->filas * sizeof(double));
+    if (err != cudaSuccess) {
+        printf("Error al reservar memoria para resultado: %s\n", cudaGetErrorString(err));
+        cudaFree(d_elementos);
+        cudaFree(d_vector);
+        return;
+    }
     
     // Inicializar el vector resultado a ceros en GPU
     cudaMemset(d_resultado, 0, matriz->filas * sizeof(double));
