@@ -122,32 +122,40 @@ run_benchmark() {
     
     # Run sequential version
     echo "Running sequential version..."
-    time_sequential=$(time ./practica1 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
-    echo "Raw sequential time: $time_sequential" >&2
-    time_sequential=$(convert_time_to_seconds "$time_sequential")
-    echo "Converted sequential time: $time_sequential" >&2
+    time_sequential=$(./practica1 "$matriz_file" "$vector_file" 2>&1 | grep "Tiempo de ejecución:" | awk '{print $4}')
+    if [ -z "$time_sequential" ]; then
+        echo "Error: No se pudo obtener el tiempo de ejecución secuencial" >&2
+        return 1
+    fi
+    echo "Sequential time: $time_sequential" >&2
     
     # Run OpenMP version with different thread counts
     echo "Running OpenMP version..."
     export OMP_NUM_THREADS=$threads
-    time_openmp=$(time ./practica2 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
-    echo "Raw OpenMP time: $time_openmp" >&2
-    time_openmp=$(convert_time_to_seconds "$time_openmp")
-    echo "Converted OpenMP time: $time_openmp" >&2
+    time_openmp=$(./practica2 "$matriz_file" "$vector_file" 2>&1 | grep "Tiempo de ejecución:" | awk '{print $4}')
+    if [ -z "$time_openmp" ]; then
+        echo "Error: No se pudo obtener el tiempo de ejecución OpenMP" >&2
+        return 1
+    fi
+    echo "OpenMP time: $time_openmp" >&2
     
     # Run MPI version
     echo "Running MPI version..."
-    time_mpi=$(time mpirun -np $threads ./practica3_mpi "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
-    echo "Raw MPI time: $time_mpi" >&2
-    time_mpi=$(convert_time_to_seconds "$time_mpi")
-    echo "Converted MPI time: $time_mpi" >&2
+    time_mpi=$(mpirun -np $threads ./practica3_mpi "$matriz_file" "$vector_file" 2>&1 | grep "Tiempo de ejecución MPI:" | awk '{print $5}')
+    if [ -z "$time_mpi" ]; then
+        echo "Error: No se pudo obtener el tiempo de ejecución MPI" >&2
+        return 1
+    fi
+    echo "MPI time: $time_mpi" >&2
     
     # Run CUDA version
     echo "Running CUDA version..."
-    time_cuda=$(time ./practica4 "$matriz_file" "$vector_file" 2>&1 | grep "real" | awk '{print $2}')
-    echo "Raw CUDA time: $time_cuda" >&2
-    time_cuda=$(convert_time_to_seconds "$time_cuda")
-    echo "Converted CUDA time: $time_cuda" >&2
+    time_cuda=$(./practica4 "$matriz_file" "$vector_file" 2>&1 | grep "Tiempo de ejecución:" | awk '{print $4}')
+    if [ -z "$time_cuda" ]; then
+        echo "Error: No se pudo obtener el tiempo de ejecución CUDA" >&2
+        return 1
+    fi
+    echo "CUDA time: $time_cuda" >&2
     
     # Calculate speedups safely
     speedup_openmp=$(calculate_speedup "$time_sequential" "$time_openmp")

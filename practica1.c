@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>  // Para medir el tiempo
+#include <sys/time.h>  // Para gettimeofday
 
 // Estructura para almacenar elementos no nulos de la matriz dispersa
 typedef struct {
@@ -182,13 +182,14 @@ int main(int argc, char *argv[]) {
     }
 
     // Medir tiempo de ejecución
-    clock_t inicio = clock();
+    struct timeval inicio, fin;
+    gettimeofday(&inicio, NULL);
     
     // Realizar multiplicación
     multiplicar_matriz_vector(matriz, vector, resultado);
     
-    clock_t fin = clock();
-    double tiempo = (double)(fin - inicio) / CLOCKS_PER_SEC;
+    gettimeofday(&fin, NULL);
+    double tiempo = (fin.tv_sec - inicio.tv_sec) + (fin.tv_usec - inicio.tv_usec) / 1000000.0;
 
     // Imprimir solo el tiempo de ejecución
     printf("Tiempo de ejecución: %.6f segundos\n", tiempo);

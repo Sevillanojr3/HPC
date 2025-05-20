@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <cuda_runtime.h>
+#include <sys/time.h>  // Para gettimeofday
 
 // Estructura para almacenar elementos no nulos de la matriz dispersa
 typedef struct {
@@ -299,31 +300,23 @@ int main(int argc, char *argv[]) {
     }
     
     // Medir tiempo de ejecución
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
+    struct timeval inicio, fin;
+    gettimeofday(&inicio, NULL);
     
     // Realizar multiplicación
     multiplicar_matriz_vector_cuda(matriz, vector, resultado);
     
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    float tiempo;
-    cudaEventElapsedTime(&tiempo, start, stop);
+    gettimeofday(&fin, NULL);
+    double tiempo = (fin.tv_sec - inicio.tv_sec) + (fin.tv_usec - inicio.tv_usec) / 1000000.0;
     
     // Imprimir tiempo de ejecución
-    printf("Tiempo de ejecución: %.6f segundos\n", tiempo / 1000.0);
+    printf("Tiempo de ejecución: %.6f segundos\n", tiempo);
     
     // Liberar memoria
     free(matriz->elementos);
     free(matriz);
     free(vector);
     free(resultado);
-    
-    // Destruir eventos CUDA
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
     
     return 0;
 }

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <omp.h>  // Incluimos OpenMP
+#include <sys/time.h>  // Para gettimeofday
 
 // Estructura para almacenar elementos no nulos de la matriz dispersa
 typedef struct {
@@ -193,13 +194,14 @@ int main(int argc, char *argv[]) {
     }
     
     // Medir tiempo de ejecución
-    double inicio = omp_get_wtime();
+    struct timeval inicio, fin;
+    gettimeofday(&inicio, NULL);
     
     // Realizar multiplicación
     multiplicar_matriz_dispersa_vector(matriz, vector, resultado);
     
-    double fin = omp_get_wtime();
-    double tiempo = fin - inicio;
+    gettimeofday(&fin, NULL);
+    double tiempo = (fin.tv_sec - inicio.tv_sec) + (fin.tv_usec - inicio.tv_usec) / 1000000.0;
     
     // Imprimir tiempo de ejecución
     printf("Tiempo de ejecución: %.6f segundos\n", tiempo);

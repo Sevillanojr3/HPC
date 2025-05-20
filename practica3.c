@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mpi.h>  // Incluimos MPI en lugar de OpenMP
+#include <sys/time.h>  // Para gettimeofday
 
 // Estructura para almacenar elementos no nulos de la matriz dispersa
 typedef struct {
@@ -142,7 +143,7 @@ void multiplicar_matriz_vector_mpi(MatrizDispersa* matriz, double* vector, doubl
 
 int main(int argc, char *argv[]) {
     int rank, size;
-    double tiempo_inicio, tiempo_fin;
+    struct timeval inicio, fin;
     
     // Inicializar MPI
     MPI_Init(&argc, &argv);
@@ -305,9 +306,10 @@ int main(int argc, char *argv[]) {
         printf("Número de procesos: %d\n", size);
     }
     
-    tiempo_inicio = MPI_Wtime();
+    gettimeofday(&inicio, NULL);
     multiplicar_matriz_vector_mpi(matriz, vector, resultado, rank, size);
-    tiempo_fin = MPI_Wtime();
+    gettimeofday(&fin, NULL);
+    double tiempo = (fin.tv_sec - inicio.tv_sec) + (fin.tv_usec - inicio.tv_usec) / 1000000.0;
     
     // Imprimir resultado y tiempo en el proceso 0
     if (rank == 0) {
@@ -316,18 +318,7 @@ int main(int argc, char *argv[]) {
             printf("%.2f\n", resultado[i]);
         }
         
-        printf("Tiempo de ejecución MPI: %f segundos\n", tiempo_fin - tiempo_inicio);
-        
-        // Medimos también el tiempo total de ejecución
-        double tiempo_total_inicio, tiempo_total_fin;
-        MPI_Reduce(&tiempo_inicio, &tiempo_total_inicio, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
-        MPI_Reduce(&tiempo_fin, &tiempo_total_fin, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-        printf("Tiempo total de ejecución (desde el primer proceso hasta el último): %f segundos\n", 
-               tiempo_total_fin - tiempo_total_inicio);
-    } else {
-        // Los demás procesos participan en la reducción
-        MPI_Reduce(&tiempo_inicio, NULL, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
-        MPI_Reduce(&tiempo_fin, NULL, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+        printf("Tiempo de ejecución MPI: %.6f segundos\n", tiempo);
     }
     
     // Liberar memoria en cada proceso
