@@ -72,9 +72,19 @@ void multiplicar_matriz_vector_cuda(MatrizDispersa* matriz, double* vector, doub
     
     // Reservar memoria en GPU
     printf("Reservando memoria en GPU...\n");
-    CUDA_CHECK(cudaMalloc((void**)&d_elementos, matriz->num_elementos * sizeof(Elemento)));
-    CUDA_CHECK(cudaMalloc((void**)&d_vector, matriz->columnas * sizeof(double)));
-    CUDA_CHECK(cudaMalloc((void**)&d_resultado, matriz->filas * sizeof(double)));
+    void* temp_ptr = NULL;
+    
+    // Reservar memoria para elementos
+    CUDA_CHECK(cudaMalloc(&temp_ptr, matriz->num_elementos * sizeof(Elemento)));
+    d_elementos = (Elemento*)temp_ptr;
+    
+    // Reservar memoria para vector
+    CUDA_CHECK(cudaMalloc(&temp_ptr, matriz->columnas * sizeof(double)));
+    d_vector = (double*)temp_ptr;
+    
+    // Reservar memoria para resultado
+    CUDA_CHECK(cudaMalloc(&temp_ptr, matriz->filas * sizeof(double)));
+    d_resultado = (double*)temp_ptr;
     
     // Inicializar el vector resultado a ceros en GPU
     printf("Inicializando resultado a ceros...\n");
