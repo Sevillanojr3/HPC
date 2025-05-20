@@ -11,100 +11,18 @@ check_command() {
     fi
 }
 
-# Function to convert time format to seconds
-convert_time_to_seconds() {
-    local time_str=$1
-    echo "Converting time: $time_str" >&2
-    
-    # Extract minutes and seconds
-    local minutes=0
-    local seconds=0
-    
-    if [[ $time_str == *m* ]]; then
-        minutes=$(echo $time_str | cut -d'm' -f1)
-        seconds=$(echo $time_str | cut -d'm' -f2 | cut -d's' -f1)
-    else
-        seconds=$(echo $time_str | cut -d's' -f1)
-    fi
-    
-    echo "Minutes: $minutes, Seconds: $seconds" >&2
-    
-    # Convert to seconds and ensure it's a valid number
-    # Replace comma with dot for decimal point
-    seconds=$(echo $seconds | tr ',' '.')
-    minutes=$(echo $minutes | tr ',' '.')
-    
-    # Use printf for consistent decimal formatting
-    local result=$(printf "%.3f\n" "$(echo "$minutes * 60 + $seconds" | bc -l)")
-    echo "Converted to seconds: $result" >&2
-    echo "$result"
-}
-
 # Function to calculate speedup safely
 calculate_speedup() {
     local seq_time=$1
     local par_time=$2
     
-    echo "Calculating speedup for seq_time=$seq_time, par_time=$par_time" >&2
-    
-    # Check if times are valid numbers
-    if [[ ! $seq_time =~ ^[0-9]+([.,][0-9]+)?$ ]] || [[ ! $par_time =~ ^[0-9]+([.,][0-9]+)?$ ]]; then
-        echo "Invalid time format" >&2
-        echo "0.00"
-        return
-    fi
-    
-    # Replace comma with dot for decimal point
+    # Convert to decimal point format
     seq_time=$(echo $seq_time | tr ',' '.')
     par_time=$(echo $par_time | tr ',' '.')
     
-    echo "Converted times: seq_time=$seq_time, par_time=$par_time" >&2
-    
-    # Check for division by zero
-    if (( $(echo "$par_time == 0" | bc -l) )); then
-        echo "Division by zero" >&2
-        echo "0.00"
-        return
-    fi
-    
-    # Use printf for consistent decimal formatting
-    local result=$(printf "%.2f\n" "$(echo "scale=4; $seq_time / $par_time" | bc -l)")
-    echo "Calculated speedup: $result" >&2
-    echo "$result"
+    # Use bc for calculation
+    echo "scale=4; $seq_time / $par_time" | bc -l
 }
-
-# Check required dependencies
-echo "Verificando dependencias..."
-check_command "gcc" "GCC (gcc)"
-check_command "nvcc" "CUDA Toolkit (nvcc)"
-check_command "mpicc" "MPI (openmpi-bin y libopenmpi-dev)"
-check_command "bc" "bc (bc)"
-
-# Compile all programs
-echo "Compiling programs..."
-
-# Compile sequential version
-echo "Compilando versión secuencial..."
-gcc -o practica1 practica1.c
-
-# Compile OpenMP version
-echo "Compilando versión OpenMP..."
-gcc -fopenmp -o practica2 practica2.c
-
-# Compile MPI version
-echo "Compilando versión MPI..."
-mpicc -o practica3_mpi practica3.c
-
-# Compile CUDA version with proper flags
-echo "Compilando versión CUDA..."
-nvcc -o practica4 practica4.cu -arch=sm_60 -Wno-deprecated-gpu-targets
-
-# Compile matrix generator
-echo "Compilando generador de matrices..."
-gcc -o generar_matriz generar_matriz.c
-
-# Create results directory
-mkdir -p results
 
 # Function to run benchmark for a specific size
 run_benchmark() {
@@ -141,7 +59,13 @@ run_benchmark() {
     
     # Run MPI version
     echo "Running MPI version..."
-    time_mpi=$(mpirun -np $threads ./practica3_mpi "$matriz_file" "$vector_file" 2>&1 | grep "Tiempo de ejecución MPI:" | awk '{print $5}')
+    # Limitar el número de procesos MPI al número de hilos disponibles
+    local mpi_processes=$threads
+    if [ $mpi_processes -gt 8 ]; then
+        mpi_processes=8
+        echo "Warning: Limiting MPI processes to 8 (requested: $threads)" >&2
+    fi
+    time_mpi=$(mpirun -np $mpi_processes ./practica3_mpi "$matriz_file" "$vector_file" 2>&1 | grep "Tiempo de ejecución MPI:" | awk '{print $5}')
     if [ -z "$time_mpi" ]; then
         echo "Error: No se pudo obtener el tiempo de ejecución MPI" >&2
         return 1
@@ -168,6 +92,39 @@ run_benchmark() {
     # Clean up generated files
     rm "$matriz_file" "$vector_file"
 }
+
+# Check required dependencies
+echo "Verificando dependencias..."
+check_command "gcc" "GCC (gcc)"
+check_command "nvcc" "CUDA Toolkit (nvcc)"
+check_command "mpicc" "MPI (openmpi-bin y libopenmpi-dev)"
+check_command "bc" "bc (bc)"
+
+# Compile all programs
+echo "Compiling programs..."
+
+# Compile sequential version
+echo "Compilando versión secuencial..."
+gcc -o practica1 practica1.c
+
+# Compile OpenMP version
+echo "Compilando versión OpenMP..."
+gcc -fopenmp -o practica2 practica2.c
+
+# Compile MPI version
+echo "Compilando versión MPI..."
+mpicc -o practica3_mpi practica3.c
+
+# Compile CUDA version with proper flags
+echo "Compilando versión CUDA..."
+nvcc -o practica4 practica4.cu -arch=sm_60 -Wno-deprecated-gpu-targets
+
+# Compile matrix generator
+echo "Compilando generador de matrices..."
+gcc -o generar_matriz generar_matriz.c
+
+# Create results directory
+mkdir -p results
 
 # Create CSV header
 echo "Size,Threads,Sequential Time,OpenMP Time,MPI Time,CUDA Time,OpenMP Speedup,MPI Speedup,CUDA Speedup" > results/benchmark_results.csv
